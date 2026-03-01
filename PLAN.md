@@ -22,14 +22,14 @@ adding a React/TypeScript Style Mixer UI alongside the existing custom nodes.
 - [x] Register aiohttp static routes to serve `dist/immac_style_mixer/` at `/immac_style_mixer/`
 - [x] Register `nodes.EXTENSION_WEB_DIRS[project_name]` using `comfy_config` (with fallback)
 
-### Step 3 — Add Style Mixer REST API (`src/immac_tools/api.py`) ← *currently here*
-- Load/save `style_mixer_data.json` in workspace root
-- Schema: `{ "styles": [{ "id", "name", "value", "favorite" }], "mixes": [{ "id", "name", "styles": [{ "style_id", "weight", "enabled" }], "favorite" }], "current_mix_id": null }`
-- Routes (registered from `__init__.py`):
-  - `GET  /immac_style_mixer/api/data` → return full data blob
-  - `POST /immac_style_mixer/api/data` → replace full data blob
+### ✅ Step 3 — Add Style Mixer REST API (`src/immac_tools/api.py`)
+- [x] `style_mixer_data.json` load/save helpers
+- [x] `GET  /immac_style_mixer/api/data`
+- [x] `POST /immac_style_mixer/api/data` (with basic structural validation)
+- [x] Routes wired into root `__init__.py` via `register_routes()`
+- [x] Images handled by ComfyUI built-ins (`/upload/image` + `/view`)
 
-### Step 4 — Update `pyproject.toml`
+### Step 4 — Update `pyproject.toml` ← *currently here*
 - Change `includes = []` → `includes = ["dist/"]`
 - Remove `[build-system]` / `[tool.setuptools]` blocks (not needed; ComfyUI loads directly)
 

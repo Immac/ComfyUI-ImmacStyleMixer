@@ -5,6 +5,8 @@ import server
 from aiohttp import web
 import nodes
 
+from src.immac_tools.api import register_routes
+
 # Python nodes are registered via comfy_entrypoint() — no dict needed here.
 NODE_CLASS_MAPPINGS = {}
 __all__ = ["NODE_CLASS_MAPPINGS"]
@@ -33,5 +35,8 @@ if os.path.exists(dist_path):
     nodes.EXTENSION_WEB_DIRS[project_name] = os.path.join(workspace_path, "dist")
 else:
     print("[ImmacStyleMixer] Web dist directory not found — skipping static file registration.")
+
+# Always register API routes (data endpoints work even before the UI is built)
+register_routes(server.PromptServer.instance.app, workspace_path)
 
 
