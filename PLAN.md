@@ -33,13 +33,15 @@ adding a React/TypeScript Style Mixer UI alongside the existing custom nodes.
 - [x] Change `includes = []` → `includes = ["dist/"]`
 - [x] Remove `[build-system]` / `[tool.setuptools]` blocks
 
-### Step 5 — Scaffold `ui/` (React + TypeScript + Vite) ← *currently here*
-- `ui/package.json` — deps: `react`, `react-dom`, `vite`, `@vitejs/plugin-react`, `typescript`, `@comfyorg/comfyui-frontend-types`; build output → `../dist/immac_style_mixer`
-- `ui/vite.config.ts` — output `../dist/immac_style_mixer`
-- `ui/tsconfig.json` + `ui/tsconfig.node.json`
-- `ui/src/main.tsx` — registers ComfyUI extension; mounts panel as a sidebar tab via `app.extensionManager.registerSidebarTab`
+### ✅ Step 5 — Scaffold `ui/` (React + TypeScript + Vite)
+- [x] `ui/package.json`
+- [x] `ui/vite.config.ts` — output → `../dist/immac_style_mixer/`
+- [x] `ui/tsconfig.json` + `ui/tsconfig.node.json`
+- [x] `ui/src/main.tsx` — registers ComfyUI sidebar tab `immac-style-mixer`
+- [x] `ui/src/components/StyleMixerPanel.tsx` — placeholder
+- [x] Build verified (`npm run build` ✔)
 
-### Step 6 — Build UI components
+### Step 6 — Build UI components ← *currently here*
 - `hooks/useStyleMixerData.ts` — fetch/save via `/immac_style_mixer/api/data`
 - `components/StyleCard.tsx` — name (editable), value, favorite star, delete
 - `components/MixCard.tsx` — name, radio to activate, list of style entries (name + weight slider + ON/OFF toggle + remove), favorite star
