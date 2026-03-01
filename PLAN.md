@@ -29,11 +29,11 @@ adding a React/TypeScript Style Mixer UI alongside the existing custom nodes.
 - [x] Routes wired into root `__init__.py` via `register_routes()`
 - [x] Images handled by ComfyUI built-ins (`/upload/image` + `/view`)
 
-### Step 4 — Update `pyproject.toml` ← *currently here*
-- Change `includes = []` → `includes = ["dist/"]`
-- Remove `[build-system]` / `[tool.setuptools]` blocks (not needed; ComfyUI loads directly)
+### ✅ Step 4 — Update `pyproject.toml`
+- [x] Change `includes = []` → `includes = ["dist/"]`
+- [x] Remove `[build-system]` / `[tool.setuptools]` blocks
 
-### Step 5 — Scaffold `ui/` (React + TypeScript + Vite)
+### Step 5 — Scaffold `ui/` (React + TypeScript + Vite) ← *currently here*
 - `ui/package.json` — deps: `react`, `react-dom`, `vite`, `@vitejs/plugin-react`, `typescript`, `@comfyorg/comfyui-frontend-types`; build output → `../dist/immac_style_mixer`
 - `ui/vite.config.ts` — output `../dist/immac_style_mixer`
 - `ui/tsconfig.json` + `ui/tsconfig.node.json`

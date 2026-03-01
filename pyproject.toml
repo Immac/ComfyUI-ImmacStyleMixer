@@ -1,7 +1,3 @@
-[build-system]
-requires = ["setuptools>=70.0"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "ComfyUI-ImmacStyleMixer"
 version = "0.0.1"
@@ -40,16 +36,7 @@ Icon = ""
 Tags = ["sigmas"]
 Repository = "https://github.com/Immac/ComfyUI-ImmacTools"
 
-includes = []
-
-[tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-"*" = ["*.*"]
+includes = ["dist/"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
