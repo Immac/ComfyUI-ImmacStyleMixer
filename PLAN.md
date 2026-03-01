@@ -41,14 +41,16 @@ adding a React/TypeScript Style Mixer UI alongside the existing custom nodes.
 - [x] `ui/src/components/StyleMixerPanel.tsx` — placeholder
 - [x] Build verified (`npm run build` ✔)
 
-### Step 6 — Build UI components ← *currently here*
-- `hooks/useStyleMixerData.ts` — fetch/save via `/immac_style_mixer/api/data`
-- `components/StyleCard.tsx` — name (editable), value, favorite star, delete
-- `components/MixCard.tsx` — name, radio to activate, list of style entries (name + weight slider + ON/OFF toggle + remove), favorite star
-- `components/StyleGallery.tsx` — grid of all styles; "Add Style" inline form
-- `components/StyleMixerPanel.tsx` — top-level: **Current Mix** / **Mixes** / **Styles** sections
+### ✅ Step 6 — Build UI components
+- [x] `types.ts` — `Style`, `Mix`, `MixEntry`, `StyleMixerData`
+- [x] `hooks/useStyleMixerData.ts` — fetch/save via API; `uploadStyleImage()` + `styleImageUrl()` helpers
+- [x] `components/StyleCard.tsx` — image upload (drag&drop/picker), editable name & prompt, favorite star, delete
+- [x] `components/MixCard.tsx` — name, radio to activate, style entries (ON/OFF + weight + remove), add-style dropdown, favorite star
+- [x] `components/StyleGallery.tsx` — sorted grid (favorites first), inline "Add" form
+- [x] `components/StyleMixerPanel.tsx` — Current Mix / Mixes / Styles sections wired to data hook
+- [x] Build verified (`tsc && vite build` ✔)
 
-### Step 7 — GitHub Actions CI
+### Step 7 — GitHub Actions CI ← *currently here*
 - `.github/workflows/react-build.yml` — on push to `main`: `npm ci` + `npm run build` inside `ui/`
 
 ---

@@ -1,1 +1,0 @@
-import{j as e}from"./main.js";import"./vendor-wGySg1uH.js";function i(){return e.jsxs("div",{style:{padding:"1rem",color:"var(--p-text-color, #eee)"},children:[e.jsx("h2",{style:{marginTop:0},children:"🎨 Style Mixer"}),e.jsx("p",{children:"Coming soon: Current Mix, Mixes, and Styles."})]})}export{i as default};
