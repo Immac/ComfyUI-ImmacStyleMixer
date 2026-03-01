@@ -109,10 +109,7 @@ class ForwardModelNode(io.ComfyNode):
 		return io.NodeOutput(model)
 
 
-class ExampleForwardingExtension(ComfyExtension):
-	@override
-	async def get_node_list(self) -> list[type[io.ComfyNode]]:
-		return [ForwardAnyNode, ForwardConditioningNode, ForwardModelNode]
+
 
 
 
