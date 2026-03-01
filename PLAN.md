@@ -9,20 +9,20 @@ adding a React/TypeScript Style Mixer UI alongside the existing custom nodes.
 
 ### ✅ Step 0 — Save this plan (first order of business)
 
-### Step 1 — Clean up the Python layer ← *currently here*
+### ✅ Step 1 — Clean up the Python layer
 - [x] Save plan to `PLAN.md`
 - [x] Delete broken tests (`tests/test_immac_tools.py` — asserts old-style class attributes that don't exist on `io.ComfyNode`)
 - [x] Remove dead dict registration from `src/immac_tools/__init__.py` (`NODE_CLASS_MAPPINGS`, `NODE_DISPLAY_NAME_MAPPINGS`, `WEB_DIRECTORY`)
 - [x] Remove unused `ExampleForwardingExtension` from `src/immac_tools/forwarding_nodes.py`
 
-### Step 2 — Rewrite root `__init__.py` to match the template pattern
-- Remove `WEB_DIRECTORY` re-export
-- Set `NODE_CLASS_MAPPINGS = {}` (nodes registered via `comfy_entrypoint`)
-- Wire `comfy_entrypoint` to `src/immac_tools/nodes.py`
-- Register aiohttp static routes to serve `dist/immac_style_mixer/` at `/immac_style_mixer/`
-- Register `nodes.EXTENSION_WEB_DIRS[project_name]` using `comfy_config` (with fallback)
+### ✅ Step 2 — Rewrite root `__init__.py` to match the template pattern
+- [x] Remove `WEB_DIRECTORY` re-export
+- [x] Set `NODE_CLASS_MAPPINGS = {}` (nodes registered via `comfy_entrypoint`)
+- [x] Wire `comfy_entrypoint` to `src/immac_tools/nodes.py`
+- [x] Register aiohttp static routes to serve `dist/immac_style_mixer/` at `/immac_style_mixer/`
+- [x] Register `nodes.EXTENSION_WEB_DIRS[project_name]` using `comfy_config` (with fallback)
 
-### Step 3 — Add Style Mixer REST API (`src/immac_tools/api.py`)
+### Step 3 — Add Style Mixer REST API (`src/immac_tools/api.py`) ← *currently here*
 - Load/save `style_mixer_data.json` in workspace root
 - Schema: `{ "styles": [{ "id", "name", "value", "favorite" }], "mixes": [{ "id", "name", "styles": [{ "style_id", "weight", "enabled" }], "favorite" }], "current_mix_id": null }`
 - Routes (registered from `__init__.py`):
