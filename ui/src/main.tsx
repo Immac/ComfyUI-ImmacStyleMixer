@@ -74,6 +74,48 @@ async function init(): Promise<void> {
 
   window.app.registerExtension({
     name: 'ImmacStyleMixer',
+
+    nodeCreated(node: any) {
+      if (node.comfyClass !== 'StyleMixImmacStyleMixer') return
+
+      const mixWidget = node.widgets?.find((w: any) => w.name === 'mix')
+      if (!mixWidget) return
+
+      const updatePreview = async (mixName: string) => {
+        try {
+          const resp = await fetch('/immac-style-mixer/data')
+          const data = await resp.json()
+          const mix = data.mixes?.find((m: any) => m.name === mixName)
+
+          const current = { ...(window.app!.nodeOutputs ?? {}) }
+          if (mix?.image_filename) {
+            current[String(node.id)] = {
+              images: [{
+                filename: mix.image_filename,
+                subfolder: 'immac_style_mixer/mixes',
+                type: 'input',
+              }],
+            }
+          } else {
+            delete current[String(node.id)]
+          }
+          window.app!.nodeOutputs = current
+          node.graph?.setDirtyCanvas(true)
+        } catch (e) {
+          console.error('[ImmacStyleMixer] Failed to load mix preview', e)
+        }
+      }
+
+      // Load preview immediately on node creation
+      requestAnimationFrame(() => updatePreview(String(mixWidget.value ?? '')))
+
+      // Update preview whenever the widget value changes
+      const origCallback = mixWidget.callback
+      mixWidget.callback = (value: string, ...args: any[]) => {
+        origCallback?.call(mixWidget, value, ...args)
+        updatePreview(value)
+      }
+    },
   })
 }
 
