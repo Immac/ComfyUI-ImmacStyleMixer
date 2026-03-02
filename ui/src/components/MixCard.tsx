@@ -45,8 +45,8 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
-        minWidth: 220,
-        maxWidth: 300,
+        minWidth: 240,
+        maxWidth: 340,
         flexShrink: 0,
       }}
     >
@@ -92,7 +92,7 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
       </div>
 
       {/* Style entries */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 240, overflowY: 'auto' }}>
         {mix.styles.length === 0 && (
           <div style={{ fontSize: 11, color: '#666' }}>No styles added yet.</div>
         )}
@@ -141,19 +141,25 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
         })}
       </div>
 
-      {/* Add style dropdown */}
-      {unusedStyles.length > 0 && (
-        <select
-          value=""
-          onChange={(e) => { if (e.target.value) addStyle(e.target.value) }}
-          style={{ ...inputStyle, cursor: 'pointer' }}
-        >
-          <option value="">+ add style…</option>
-          {unusedStyles.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-      )}
+      {/* Add style dropdown — always visible */}
+      <select
+        value=""
+        disabled={unusedStyles.length === 0}
+        onChange={(e) => { if (e.target.value) addStyle(e.target.value) }}
+        style={{
+          ...inputStyle,
+          cursor: unusedStyles.length === 0 ? 'not-allowed' : 'pointer',
+          opacity: unusedStyles.length === 0 ? 0.45 : 1,
+        }}
+        title={unusedStyles.length === 0 ? 'All library styles are already in this mix' : 'Add a style to this mix'}
+      >
+        <option value="">
+          {unusedStyles.length === 0 ? '— all styles already added —' : '+ add style…'}
+        </option>
+        {unusedStyles.map((s) => (
+          <option key={s.id} value={s.id}>{s.name}</option>
+        ))}
+      </select>
     </div>
   )
 }
