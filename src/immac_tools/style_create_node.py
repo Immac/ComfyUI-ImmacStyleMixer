@@ -162,7 +162,7 @@ class StyleCreateNode:
             if existing is not None:
                 existing["value"] = value
                 existing["favorite"] = favorite
-                _apply_image(existing, example_image, force=False)
+                _apply_image(existing, example_image, force=True)
                 _save_data(data)
                 return (existing["id"], existing["value"])
             new_style = {
