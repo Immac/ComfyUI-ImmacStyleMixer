@@ -17,6 +17,7 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
   const [nameInput, setNameInput] = useState(mix.name)
   const [uploading, setUploading] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function handleImageFile(file: File) {
@@ -104,9 +105,29 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
         >
           <i className={mix.favorite ? 'pi pi-bookmark-fill' : 'pi pi-bookmark'} />
         </button>
-        <button title="Delete mix" onClick={onDelete} style={{ ...iconBtn, color: '#e55' }}>
-          ✕
-        </button>
+        {pendingDelete ? (
+          <>
+            <span style={{ fontSize: 11, color: 'var(--p-text-muted-color, #888)', whiteSpace: 'nowrap' }}>Delete?</span>
+            <button
+              title="Cancel"
+              onClick={() => setPendingDelete(false)}
+              style={{ ...iconBtn, fontSize: 11, color: 'var(--p-text-muted-color, #888)' }}
+            >
+              Cancel
+            </button>
+            <button
+              title="Confirm delete"
+              onClick={onDelete}
+              style={{ ...iconBtn, color: '#e55' }}
+            >
+              <i className="pi pi-trash" />
+            </button>
+          </>
+        ) : (
+          <button title="Delete mix" onClick={() => setPendingDelete(true)} style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)' }}>
+            <i className="pi pi-trash" />
+          </button>
+        )}
       </div>
 
       {/* Cover image */}

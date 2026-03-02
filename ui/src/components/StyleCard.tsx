@@ -16,6 +16,7 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
   const [valueInput, setValueInput] = useState(style.value)
   const [uploading, setUploading] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   function commitName() {
@@ -56,19 +57,39 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
         position: 'relative',
       }}
     >
-      {/* Favorite + Delete row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <button
-          title={style.favorite ? 'Remove bookmark' : 'Bookmark'}
-          onClick={() => onUpdate({ ...style, favorite: !style.favorite })}
-          style={iconBtn}
-        >
-          <i className={style.favorite ? 'pi pi-bookmark-fill' : 'pi pi-bookmark'} />
-        </button>
-        <button title="Delete style" onClick={onDelete} style={{ ...iconBtn, color: '#e55' }}>
-          ✕
-        </button>
-      </div>
+      {/* Bookmark + Delete row */}
+      {pendingDelete ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ flex: 1, fontSize: 11, color: 'var(--p-text-muted-color, #888)' }}>Delete style?</span>
+          <button
+            title="Cancel"
+            onClick={() => setPendingDelete(false)}
+            style={{ ...iconBtn, fontSize: 12, color: 'var(--p-text-muted-color, #888)' }}
+          >
+            Cancel
+          </button>
+          <button
+            title="Confirm delete"
+            onClick={onDelete}
+            style={{ ...iconBtn, fontSize: 12, color: '#e55', fontWeight: 600 }}
+          >
+            <i className="pi pi-trash" />
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <button
+            title={style.favorite ? 'Remove bookmark' : 'Bookmark'}
+            onClick={() => onUpdate({ ...style, favorite: !style.favorite })}
+            style={iconBtn}
+          >
+            <i className={style.favorite ? 'pi pi-bookmark-fill' : 'pi pi-bookmark'} />
+          </button>
+          <button title="Delete style" onClick={() => setPendingDelete(true)} style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)' }}>
+            <i className="pi pi-trash" />
+          </button>
+        </div>
+      )}
 
       {/* Image area */}
       <div style={{ position: 'relative', width: '100%', paddingBottom: '100%' }}>
