@@ -78,6 +78,7 @@ class StyleCreateNode:
                 "creation_mode": (_CREATION_MODES, {"default": "Create or Update"}),
             },
             "optional": {
+                "style_id": ("STRING", {"default": "", "multiline": False}),
                 "favorite": ("BOOLEAN", {"default": False}),
                 "example_image": ("IMAGE", {}),
             },
@@ -91,9 +92,13 @@ class StyleCreateNode:
     DESCRIPTION = (
         "Creates or updates a style in the Style Mixer data file.\n"
         "\n"
+        "If style_id is connected (e.g. from a Style Pick node) the style is looked\n"
+        "up by ID and the name is updated to match the name input.\n"
+        "If only name is provided, lookup falls back to matching by name.\n"
+        "\n"
         "Creation modes:\n"
-        "  Create           — fails if a style with that name already exists.\n"
-        "  Create or Skip   — returns the existing style unchanged if the name exists.\n"
+        "  Create           — fails if a matching style already exists.\n"
+        "  Create or Skip   — returns the existing style unchanged if one is found.\n"
         "  Create or Update — creates if new, overwrites value & favorite if exists.\n"
         "  Overwrite        — always replaces the matching style (create if missing)."
     )
@@ -110,11 +115,13 @@ class StyleCreateNode:
         name: str,
         value: str,
         creation_mode: str,
+        style_id: str = "",
         favorite: bool = False,
         example_image: Any = None,
     ) -> tuple[str, str]:
         name = name.strip()
         value = value.strip()
+        style_id = style_id.strip()
 
         if not name:
             raise ValueError("[StyleCreateNode] 'name' must not be empty.")
@@ -122,7 +129,15 @@ class StyleCreateNode:
         data = _load_data()
         styles: list[dict] = data.setdefault("styles", [])
 
-        existing = next((s for s in styles if s.get("name") == name), None)
+        # Resolve the existing style: ID takes priority over name.
+        # When found by ID, also update the name field so renames propagate.
+        existing: dict | None = None
+        if style_id:
+            existing = next((s for s in styles if s.get("id") == style_id), None)
+            if existing is not None and existing.get("name") != name:
+                existing["name"] = name
+        if existing is None:
+            existing = next((s for s in styles if s.get("name") == name), None)
 
         def _apply_image(style: dict, img: Any | None, force: bool) -> None:
             """Save image tensor and set image_filename on the style dict if provided."""
@@ -141,8 +156,9 @@ class StyleCreateNode:
         if creation_mode == "Create":
             if existing is not None:
                 raise RuntimeError(
-                    f"[StyleCreateNode] A style named '{name}' already exists "
-                    f"(id={existing['id']}). Use a different creation mode to allow updates."
+                    f"[StyleCreateNode] A style already exists matching the provided "
+                    f"name/id (id={existing['id']}, name='{existing['name']}'). "
+                    f"Use a different creation mode to allow updates."
                 )
             new_style: dict = {
                 "id": str(uuid.uuid4()),
