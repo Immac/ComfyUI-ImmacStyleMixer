@@ -101,7 +101,8 @@ export default function StyleMixerPanel() {
     <PanelGroup orientation="vertical" style={panelShell}>
 
       {/* ── Pane 0: Current Mix ─────────────────────────────────────────── */}
-      <Panel defaultSize={20} minSize={8} style={panelInner}>
+      <Panel defaultSize={20} minSize={8}>
+        <div style={panelInner}>
         <SectionHeader title="Current Mix" />
         {!currentMix ? (
           <div style={{ fontSize: 12, color: '#666' }}>No mix active — select one from Mixes below.</div>
@@ -139,6 +140,7 @@ export default function StyleMixerPanel() {
             </div>
           </div>
         )}
+        </div>
       </Panel>
 
       <PanelResizeHandle style={resizeHandle}>
@@ -146,7 +148,8 @@ export default function StyleMixerPanel() {
       </PanelResizeHandle>
 
       {/* ── Pane 1: Mixes ───────────────────────────────────────────────── */}
-      <Panel defaultSize={40} minSize={8} style={panelInner}>
+      <Panel defaultSize={40} minSize={8}>
+        <div style={panelInner}>
         <SectionHeader title="Mixes" />
         <input
           placeholder="Filter mixes…"
@@ -185,6 +188,7 @@ export default function StyleMixerPanel() {
             +
           </button>
         </div>
+        </div>
       </Panel>
 
       <PanelResizeHandle style={resizeHandle}>
@@ -192,7 +196,8 @@ export default function StyleMixerPanel() {
       </PanelResizeHandle>
 
       {/* ── Pane 2: Styles ──────────────────────────────────────────────── */}
-      <Panel defaultSize={40} minSize={8} style={panelInner}>
+      <Panel defaultSize={40} minSize={8}>
+        <div style={panelInner}>
         <SectionHeader title="Styles" />
         <StyleGallery
           styles={data.styles}
@@ -200,6 +205,7 @@ export default function StyleMixerPanel() {
           onDelete={deleteStyle}
           onAdd={addStyle}
         />
+        </div>
       </Panel>
 
     </PanelGroup>
@@ -208,11 +214,14 @@ export default function StyleMixerPanel() {
 
 const panelShell: React.CSSProperties = {
   height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
   color: 'var(--p-text-color, #eee)',
   fontSize: 13,
 }
 
 const panelInner: React.CSSProperties = {
+  height: '100%',
   padding: '10px 12px',
   overflowY: 'auto',
   boxSizing: 'border-box',
