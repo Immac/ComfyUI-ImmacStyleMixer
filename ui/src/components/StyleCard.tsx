@@ -115,7 +115,7 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
             onClick={(e) => { e.stopPropagation(); setLightboxOpen(true) }}
             style={magnifyBtn}
           >
-            🔍
+            <i className="pi pi-search-plus" />
           </button>
         )}
       </div>
@@ -195,17 +195,17 @@ const iconBtn: React.CSSProperties = {
 
 const magnifyBtn: React.CSSProperties = {
   position: 'absolute',
-  bottom: 4,
-  right: 4,
-  background: 'rgba(0,0,0,0.55)',
+  top: 6,
+  left: 6,
+  background: 'rgba(255,255,255,0.92)',
   border: 'none',
-  borderRadius: 4,
+  borderRadius: 6,
   cursor: 'pointer',
-  fontSize: 14,
-  padding: '2px 4px',
+  fontSize: 13,
+  padding: '3px 6px',
   lineHeight: 1,
-  color: '#fff',
-  backdropFilter: 'blur(2px)',
+  color: '#222',
+  boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
 }
 
 const inputStyle: React.CSSProperties = {
