@@ -124,6 +124,11 @@ export default function StyleMixerPanel() {
     updateMix({ ...currentMix, styles: [...currentMix.styles, { style_id: styleId, weight: 1, enabled: true }] })
   }, [currentMix, updateMix])
 
+  const removeStyleFromCurrentMix = useCallback((styleId: string) => {
+    if (!currentMix) return
+    updateMix({ ...currentMix, styles: currentMix.styles.filter((e) => e.style_id !== styleId) })
+  }, [currentMix, updateMix])
+
   const deleteMix = useCallback((id: string) => {
     update((prev) => ({
       ...prev,
@@ -317,7 +322,9 @@ export default function StyleMixerPanel() {
           onUpdate={updateStyle}
           onDelete={deleteStyle}
           onAdd={addStyle}
+          currentMixStyleIds={currentMix ? new Set(currentMix.styles.map((e) => e.style_id)) : undefined}
           onAddToMix={currentMix ? addStyleToCurrentMix : undefined}
+          onRemoveFromMix={currentMix ? removeStyleFromCurrentMix : undefined}
         />
       </CollapsibleSection>
       {lightboxSrc && (

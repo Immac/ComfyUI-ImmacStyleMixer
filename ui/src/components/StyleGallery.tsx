@@ -7,10 +7,12 @@ interface Props {
   onUpdate: (updated: Style) => void
   onDelete: (id: string) => void
   onAdd: (name: string) => void
+  currentMixStyleIds?: Set<string>
   onAddToMix?: (id: string) => void
+  onRemoveFromMix?: (id: string) => void
 }
 
-export default function StyleGallery({ styles, onUpdate, onDelete, onAdd, onAddToMix }: Props) {
+export default function StyleGallery({ styles, onUpdate, onDelete, onAdd, currentMixStyleIds, onAddToMix, onRemoveFromMix }: Props) {
   const [newName, setNewName] = useState('')
   const [adding, setAdding] = useState(false)
 
@@ -35,7 +37,9 @@ export default function StyleGallery({ styles, onUpdate, onDelete, onAdd, onAddT
             style={s}
             onUpdate={onUpdate}
             onDelete={() => onDelete(s.id)}
+            inCurrentMix={currentMixStyleIds?.has(s.id)}
             onAddToMix={onAddToMix ? () => onAddToMix(s.id) : undefined}
+            onRemoveFromMix={onRemoveFromMix ? () => onRemoveFromMix(s.id) : undefined}
           />
         ))}
 

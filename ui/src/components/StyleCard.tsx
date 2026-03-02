@@ -7,10 +7,12 @@ interface Props {
   style: Style
   onUpdate: (updated: Style) => void
   onDelete: () => void
+  inCurrentMix?: boolean
   onAddToMix?: () => void
+  onRemoveFromMix?: () => void
 }
 
-export default function StyleCard({ style, onUpdate, onDelete, onAddToMix }: Props) {
+export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onAddToMix, onRemoveFromMix }: Props) {
   const [editingName, setEditingName] = useState(false)
   const [editingValue, setEditingValue] = useState(false)
   const [nameInput, setNameInput] = useState(style.name)
@@ -20,15 +22,9 @@ export default function StyleCard({ style, onUpdate, onDelete, onAddToMix }: Pro
   const [pendingDelete, setPendingDelete] = useState(false)
   const [imageHovered, setImageHovered] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [added, setAdded] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  function handleAddToMix() {
-    if (!onAddToMix) return
-    onAddToMix()
-    setAdded(true)
-    setTimeout(() => setAdded(false), 1500)
-  }
+  const hasMix = !!(onAddToMix || onRemoveFromMix)
 
   function copyPrompt() {
     if (!style.value) return
@@ -86,14 +82,24 @@ export default function StyleCard({ style, onUpdate, onDelete, onAddToMix }: Pro
           <i className={style.favorite ? 'pi pi-bookmark-fill' : 'pi pi-bookmark'} />
         </button>
         <div style={{ display: 'flex', gap: 2 }}>
-          <button
-            title={onAddToMix ? (added ? 'Added!' : 'Add to current mix') : 'No active mix'}
-            onClick={handleAddToMix}
-            disabled={!onAddToMix}
-            style={{ ...iconBtn, color: added ? '#6c6' : 'var(--p-text-muted-color, #888)', opacity: onAddToMix ? 1 : 0.35 }}
-          >
-            <i className={added ? 'pi pi-check' : 'pi pi-plus'} />
-          </button>
+          {inCurrentMix ? (
+            <button
+              title="Remove from current mix"
+              onClick={onRemoveFromMix}
+              style={{ ...iconBtn, color: '#e66' }}
+            >
+              <i className="pi pi-minus" />
+            </button>
+          ) : (
+            <button
+              title={hasMix ? 'Add to current mix' : 'No active mix'}
+              onClick={onAddToMix}
+              disabled={!hasMix}
+              style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)', opacity: hasMix ? 1 : 0.35 }}
+            >
+              <i className="pi pi-plus" />
+            </button>
+          )}
           <button
             title={style.value ? 'Copy prompt text' : 'No prompt text to copy'}
             onClick={copyPrompt}
