@@ -4,6 +4,7 @@ export interface Style {
   value: string
   favorite: boolean
   image_filename: string | null
+  image_updated_at?: number
 }
 
 export interface MixEntry {

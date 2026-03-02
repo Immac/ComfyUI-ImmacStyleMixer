@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import time
 import uuid
 from typing import Any
 
@@ -134,6 +135,8 @@ class StyleCreateNode:
             # Reuse the existing filename so the file is overwritten in place;
             # only generates a new name when there is none yet.
             style["image_filename"] = _save_image_tensor(img, name, existing_filename=existing)
+            # Bump timestamp so the UI knows to bust its image cache
+            style["image_updated_at"] = int(time.time())
 
         if creation_mode == "Create":
             if existing is not None:

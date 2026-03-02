@@ -185,7 +185,7 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
             'Uploading…'
           ) : style.image_filename ? (
             <img
-              src={styleImageUrl(style.image_filename)}
+              src={styleImageUrl(style.image_filename, style.image_updated_at)}
               alt={style.name}
               style={{
                 width: '100%', height: '100%', objectFit: 'cover',
@@ -210,7 +210,7 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
 
       {lightboxOpen && style.image_filename && (
         <ImageLightbox
-          src={styleImageUrl(style.image_filename)}
+          src={styleImageUrl(style.image_filename, style.image_updated_at)}
           alt={style.name}
           onClose={() => setLightboxOpen(false)}
         />

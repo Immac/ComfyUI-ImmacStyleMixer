@@ -89,9 +89,12 @@ export async function uploadStyleImage(file: File): Promise<string> {
   return json.name
 }
 
-/** Build a URL to display a style image via ComfyUI's /view endpoint. */
-export function styleImageUrl(filename: string): string {
-  return `/view?filename=${encodeURIComponent(filename)}&subfolder=immac_style_mixer%2Fstyles&type=input`
+/** Build a URL to display a style image via ComfyUI's /view endpoint.
+ * Pass `updatedAt` (image_updated_at from the Style object) to bust the browser cache
+ * when the file has been overwritten in place by the StyleCreate node. */
+export function styleImageUrl(filename: string, updatedAt?: number): string {
+  const bust = updatedAt ? `&t=${updatedAt}` : ''
+  return `/view?filename=${encodeURIComponent(filename)}&subfolder=immac_style_mixer%2Fstyles&type=input${bust}`
 }
 
 /** Upload a mix cover image via ComfyUI's built-in endpoint and return the filename. */

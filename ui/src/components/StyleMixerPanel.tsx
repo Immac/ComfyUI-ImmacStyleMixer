@@ -228,7 +228,7 @@ export default function StyleMixerPanel() {
                       }}>
                         {style?.image_filename ? (
                           <img
-                            src={styleImageUrl(style.image_filename)}
+                            src={styleImageUrl(style.image_filename, style.image_updated_at)}
                             alt={style.name}
                             style={{
                               width: '100%', height: '100%', objectFit: 'cover', display: 'block',
@@ -243,7 +243,7 @@ export default function StyleMixerPanel() {
                       {style?.image_filename && hoveredChipId === entry.style_id && (
                         <button
                           title="View full size"
-                          onClick={() => setLightboxSrc(styleImageUrl(style.image_filename!))}
+                          onClick={() => setLightboxSrc(styleImageUrl(style.image_filename!, style.image_updated_at))}
                           style={{
                             position: 'absolute',
                             top: 6,
