@@ -87,20 +87,23 @@ async function init(): Promise<void> {
           const data = await resp.json()
           const mix = data.mixes?.find((m: any) => m.name === mixName)
 
-          const current = { ...(window.app!.nodeOutputs ?? {}) }
           if (mix?.image_filename) {
-            current[String(node.id)] = {
-              images: [{
-                filename: mix.image_filename,
-                subfolder: 'immac_style_mixer/mixes',
-                type: 'input',
-              }],
+            const params = new URLSearchParams({
+              filename: mix.image_filename,
+              subfolder: 'immac_style_mixer/mixes',
+              type: 'input',
+            })
+            const url = `/view?${params}`
+            const img = new Image()
+            img.onload = () => {
+              node.imgs = [img]
+              node.graph?.setDirtyCanvas(true)
             }
+            img.src = url
           } else {
-            delete current[String(node.id)]
+            node.imgs = undefined
+            node.graph?.setDirtyCanvas(true)
           }
-          window.app!.nodeOutputs = current
-          node.graph?.setDirtyCanvas(true)
         } catch (e) {
           console.error('[ImmacStyleMixer] Failed to load mix preview', e)
         }
