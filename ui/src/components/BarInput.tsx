@@ -66,9 +66,9 @@ export default function BarInput({
       dragging.current = true
       hasDragged.current = false
       dragStartX.current = e.clientX
-      dragStartValue.current = value
+      dragStartValue.current = Math.max(min, Math.min(max, value))
     },
-    [editing, value],
+    [editing, value, min, max],
   )
 
   const onPointerMove = useCallback(
@@ -78,12 +78,12 @@ export default function BarInput({
       if (Math.abs(dx) > 2) hasDragged.current = true
       const steps = dx / pixelsPerStep
       const raw = dragStartValue.current + steps * step
-      // Round to avoid floating-point drift
+      // Round to avoid floating-point drift, then clamp to [min, max] for drag
       const rounded = Math.round(raw / step) * step
-      const clamped = parseFloat(rounded.toFixed(decimals))
+      const clamped = parseFloat(Math.max(min, Math.min(max, rounded)).toFixed(decimals))
       onChange(clamped)
     },
-    [step, pixelsPerStep, decimals, onChange],
+    [step, pixelsPerStep, decimals, min, max, onChange],
   )
 
   const onPointerUp = useCallback(() => {
