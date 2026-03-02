@@ -71,7 +71,7 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
       </div>
 
       {/* Image area */}
-      <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
+      <div style={{ position: 'relative', width: '100%', paddingBottom: '100%' }}>
         <div
           title="Click or drop to upload image"
           onClick={() => fileRef.current?.click()}
@@ -82,8 +82,8 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
             if (file) handleImageDrop(file)
           }}
           style={{
-            width: '100%',
-            height: '100%',
+            position: 'absolute',
+            inset: 0,
             borderRadius: 6,
             border: '1px dashed var(--p-surface-border, #555)',
             overflow: 'hidden',
@@ -94,7 +94,6 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
             background: 'var(--p-surface-ground, #141414)',
             fontSize: 11,
             color: '#888',
-            flexShrink: 0,
           }}
         >
           {uploading ? (

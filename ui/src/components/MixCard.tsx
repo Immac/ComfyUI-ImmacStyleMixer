@@ -110,7 +110,7 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
       </div>
 
       {/* Cover image */}
-      <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
+      <div style={{ position: 'relative', width: '100%', paddingBottom: '100%' }}>
         <div
           title="Click or drop an image to set mix cover"
           onClick={() => fileRef.current?.click()}
@@ -121,8 +121,8 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
             if (file) handleImageFile(file)
           }}
           style={{
-            width: '100%',
-            height: '100%',
+            position: 'absolute',
+            inset: 0,
             borderRadius: 6,
             border: '1px dashed var(--p-surface-border, #555)',
             overflow: 'hidden',
