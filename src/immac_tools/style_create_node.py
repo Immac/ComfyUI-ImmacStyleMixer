@@ -77,6 +77,7 @@ class StyleCreateNode:
 
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("style_id", "style_value")
+    OUTPUT_NODE = True
     FUNCTION = "execute"
     CATEGORY = "Immac/Style Mixer"
     DESCRIPTION = (
