@@ -76,48 +76,46 @@ async function init(): Promise<void> {
     name: 'ImmacStyleMixer',
 
     nodeCreated(node: any) {
-      if (node.comfyClass !== 'StyleMixImmacStyleMixer') return
+      if (node.constructor?.comfyClass !== 'StyleMixImmacStyleMixer') return
 
       const mixWidget = node.widgets?.find((w: any) => w.name === 'mix')
       if (!mixWidget) return
 
-      const updatePreview = async (mixName: string) => {
-        try {
-          const resp = await fetch('/immac-style-mixer/data')
-          const data = await resp.json()
-          const mix = data.mixes?.find((m: any) => m.name === mixName)
+      const loadPreview = (mixName: string) => {
+        fetch('/immac-style-mixer/data')
+          .then((r) => r.json())
+          .then((data) => {
+            const mix = data.mixes?.find((m: any) => m.name === mixName)
+            // Clear first, just like LoadImage does
+            node.imgs = undefined
+            node.graph?.setDirtyCanvas(true)
 
-          if (mix?.image_filename) {
+            if (!mix?.image_filename) return
+
             const params = new URLSearchParams({
               filename: mix.image_filename,
               subfolder: 'immac_style_mixer/mixes',
               type: 'input',
             })
-            const url = `/view?${params}`
             const img = new Image()
             img.onload = () => {
               node.imgs = [img]
+              node.imageIndex = null
               node.graph?.setDirtyCanvas(true)
             }
-            img.src = url
-          } else {
-            node.imgs = undefined
-            node.graph?.setDirtyCanvas(true)
-          }
-        } catch (e) {
-          console.error('[ImmacStyleMixer] Failed to load mix preview', e)
-        }
+            img.src = `/view?${params}`
+          })
+          .catch((e) => console.error('[ImmacStyleMixer] preview fetch failed', e))
       }
 
-      // Load preview immediately on node creation
-      requestAnimationFrame(() => updatePreview(String(mixWidget.value ?? '')))
-
-      // Update preview whenever the widget value changes
+      // Mirror LoadImage: wrap callback then load on next frame
       const origCallback = mixWidget.callback
       mixWidget.callback = (value: string, ...args: any[]) => {
         origCallback?.call(mixWidget, value, ...args)
-        updatePreview(value)
+        loadPreview(value)
       }
+
+      requestAnimationFrame(() => loadPreview(String(mixWidget.value ?? '')))
     },
   })
 }
