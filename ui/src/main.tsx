@@ -74,6 +74,52 @@ async function init(): Promise<void> {
 
   window.app.registerExtension({
     name: 'ImmacStyleMixer',
+
+    nodeCreated(node: any) {
+      if (node.comfyClass !== 'StyleMixImmacStyleMixer') return
+
+      const mixWidget = node.widgets?.find((w: any) => w.name === 'mix')
+      if (!mixWidget) return
+
+      async function updatePreview(mixName: string) {
+        try {
+          const resp = await fetch('/immac_style_mixer/api/data')
+          if (!resp.ok) return
+          const data = await resp.json()
+          const mix = data.mixes?.find((m: any) => m.name === mixName)
+          if (!mix?.image_filename) {
+            node.imgs = undefined
+            node.setSizeForImage?.()
+            window.app?.graph?.setDirtyCanvas(true)
+            return
+          }
+          const url = `/view?filename=${encodeURIComponent(mix.image_filename)}&subfolder=immac_style_mixer%2Fmixes&type=input`
+          const img = new Image()
+          img.onload = () => {
+            node.imgs = [img]
+            node.setSizeForImage?.()
+            window.app?.graph?.setDirtyCanvas(true)
+          }
+          img.onerror = () => {
+            node.imgs = undefined
+            window.app?.graph?.setDirtyCanvas(true)
+          }
+          img.src = url
+        } catch (e) {
+          console.error('[ImmacStyleMixer] Preview update failed', e)
+        }
+      }
+
+      // Wrap the widget callback to intercept value changes
+      const origCallback = mixWidget.callback
+      mixWidget.callback = function (value: string) {
+        if (origCallback) origCallback.call(this, value)
+        updatePreview(value)
+      }
+
+      // Show initial preview without executing
+      if (mixWidget.value) updatePreview(mixWidget.value)
+    },
   })
 }
 
