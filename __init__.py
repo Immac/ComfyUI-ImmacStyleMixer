@@ -8,15 +8,18 @@ import nodes
 from .src.immac_tools.api import register_routes
 from .src.immac_tools.style_mix_node import StyleMixNode
 from .src.immac_tools.style_create_node import StyleCreateNode
+from .src.immac_tools.style_pick_node import StylePickNode
 
 # Node registry
 NODE_CLASS_MAPPINGS = {
     "StyleMixImmacStyleMixer": StyleMixNode,
     "StyleCreateImmacStyleMixer": StyleCreateNode,
+    "StylePickImmacStyleMixer": StylePickNode,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "StyleMixImmacStyleMixer": "Style Mix",
     "StyleCreateImmacStyleMixer": "Style Create",
+    "StylePickImmacStyleMixer": "Style Pick",
 }
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
 

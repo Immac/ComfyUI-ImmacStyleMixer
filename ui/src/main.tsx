@@ -76,27 +76,29 @@ async function init(): Promise<void> {
     name: 'ImmacStyleMixer',
 
     nodeCreated(node: any) {
-      if (node.comfyClass !== 'StyleMixImmacStyleMixer') return
+      if (
+        node.comfyClass !== 'StyleMixImmacStyleMixer' &&
+        node.comfyClass !== 'StylePickImmacStyleMixer'
+      ) return
 
-      const mixWidget = node.widgets?.find((w: any) => w.name === 'mix')
-      if (!mixWidget) return
+      // ── shared DOM preview widget ────────────────────────────────────────
+      const isPickNode = node.comfyClass === 'StylePickImmacStyleMixer'
+      const widgetName = isPickNode ? 'style' : 'mix'
 
-      // Create a DOM-based image preview widget so we bypass the deprecated
-      // node.imgs / setSizeForImage path that no longer works in the new frontend.
+      const comboWidget = node.widgets?.find((w: any) => w.name === widgetName)
+      if (!comboWidget) return
+
       const imgEl = document.createElement('img')
       imgEl.style.cssText = 'width:100%;height:100%;display:none;object-fit:contain;border-radius:4px'
       const container = document.createElement('div')
       container.style.cssText = 'padding:4px;box-sizing:border-box'
       container.appendChild(imgEl)
 
-      // computeLayoutSize reads these CSS vars to determine widget height.
-      // Start hidden (0); set a real minimum once the image loads.
       container.style.setProperty('--comfy-widget-min-height', '0')
       container.style.setProperty('--comfy-widget-height', '0')
 
-      node.addDOMWidget('immac_mix_preview', 'div', container, { serialize: false })
+      node.addDOMWidget('immac_preview', 'div', container, { serialize: false })
 
-      // Update sizing hints so the node layout engine behaves like a real image node.
       function applyImageSize(natW: number, natH: number) {
         const nodeWidth: number = node.size?.[0] ?? 300
         const ratio = natH / natW
@@ -104,7 +106,6 @@ async function init(): Promise<void> {
         const clamped = Math.max(80, Math.min(displayH, 600))
         container.style.setProperty('--comfy-widget-min-height', String(clamped))
         container.style.setProperty('--comfy-widget-height', String(clamped))
-        // Ask the node to recompute its minimum size
         const s = node.computeSize?.()
         if (s) node.setSize([Math.max(node.size[0], s[0]), Math.max(node.size[1], s[1])])
         window.app?.graph?.setDirtyCanvas(true)
@@ -117,56 +118,59 @@ async function init(): Promise<void> {
         window.app?.graph?.setDirtyCanvas(true)
       }
 
-      async function updatePreview(mixName: string) {
+      function showUrl(url: string) {
+        imgEl.onload = () => {
+          imgEl.style.display = 'block'
+          applyImageSize(imgEl.naturalWidth, imgEl.naturalHeight)
+        }
+        imgEl.onerror = () => { clearImageSize() }
+        imgEl.src = url
+      }
+
+      async function updatePreview(value: string) {
         try {
           const resp = await fetch('/immac_style_mixer/api/data')
           if (!resp.ok) return
           const data = await resp.json()
-          const mix = data.mixes?.find((m: any) => m.name === mixName)
 
-          let url = ''
-
-          if (mix?.image_filename) {
-            url = `/view?filename=${encodeURIComponent(mix.image_filename)}&subfolder=immac_style_mixer%2Fmixes&type=input`
-          } else if (mix?.styles?.length) {
-            // Fall back to the first enabled style that has a thumbnail
-            const stylesById = Object.fromEntries((data.styles ?? []).map((s: any) => [s.id, s]))
-            const first = (mix.styles as any[])
-              .filter((e) => e.enabled !== false)
-              .map((e) => stylesById[e.style_id])
-              .find((s) => s?.image_filename)
-            if (first) {
-              url = `/view?filename=${encodeURIComponent(first.image_filename)}&subfolder=immac_style_mixer%2Fstyles&type=input`
+          if (isPickNode) {
+            // Style Pick: show the selected style's image directly
+            const style = (data.styles ?? []).find((s: any) => s.name === value)
+            if (!style?.image_filename) { clearImageSize(); return }
+            const bust = style.image_updated_at ? `&t=${style.image_updated_at}` : ''
+            showUrl(`/view?filename=${encodeURIComponent(style.image_filename)}&subfolder=immac_style_mixer%2Fstyles&type=input${bust}`)
+          } else {
+            // Style Mix: show mix cover or first enabled style thumbnail
+            const mix = (data.mixes ?? []).find((m: any) => m.name === value)
+            let url = ''
+            if (mix?.image_filename) {
+              url = `/view?filename=${encodeURIComponent(mix.image_filename)}&subfolder=immac_style_mixer%2Fmixes&type=input`
+            } else if (mix?.styles?.length) {
+              const stylesById = Object.fromEntries((data.styles ?? []).map((s: any) => [s.id, s]))
+              const first = (mix.styles as any[])
+                .filter((e) => e.enabled !== false)
+                .map((e) => stylesById[e.style_id])
+                .find((s) => s?.image_filename)
+              if (first) {
+                const bust = first.image_updated_at ? `&t=${first.image_updated_at}` : ''
+                url = `/view?filename=${encodeURIComponent(first.image_filename)}&subfolder=immac_style_mixer%2Fstyles&type=input${bust}`
+              }
             }
+            if (!url) { clearImageSize(); return }
+            showUrl(url)
           }
-
-          if (!url) {
-            clearImageSize()
-            return
-          }
-
-          imgEl.onload = () => {
-            imgEl.style.display = 'block'
-            applyImageSize(imgEl.naturalWidth, imgEl.naturalHeight)
-          }
-          imgEl.onerror = () => { clearImageSize() }
-          imgEl.src = url
         } catch (e) {
           console.error('[ImmacStyleMixer] Preview update failed', e)
         }
       }
 
-      // ComfyUI combo widgets reliably call widget.callback() when the value
-      // changes (arrow buttons, context menu, programmatic set). Reading
-      // widget.value inside the callback returns the already-updated value.
-      const origCallback = mixWidget.callback
-      mixWidget.callback = function (...args: any[]) {
+      const origCallback = comboWidget.callback
+      comboWidget.callback = function (...args: any[]) {
         origCallback?.apply(this, args)
-        updatePreview(String(mixWidget.value ?? ''))
+        updatePreview(String(comboWidget.value ?? ''))
       }
 
-      // Show initial preview without executing
-      if (mixWidget.value) updatePreview(String(mixWidget.value))
+      if (comboWidget.value) updatePreview(String(comboWidget.value))
     },
   })
 }
