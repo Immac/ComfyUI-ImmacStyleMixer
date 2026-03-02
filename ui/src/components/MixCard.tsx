@@ -80,6 +80,11 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
 
   return (
     <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'copy'
+        e.dataTransfer.setData('application/x-immac-mix-name', mix.name)
+      }}
       style={{
         border: `2px solid ${styleDragOver ? '#88aaff' : isActive ? 'var(--p-primary-color, #6c6)' : 'var(--p-surface-border, #444)'}`,
         borderRadius: 8,
@@ -91,7 +96,7 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
         width: '100%',
         position: 'relative',
         overflow: 'hidden',
-        cursor: 'pointer',
+        cursor: 'grab',
         transition: 'border-color 0.15s, background 0.15s',
       }}
       onClick={handleCardClick}

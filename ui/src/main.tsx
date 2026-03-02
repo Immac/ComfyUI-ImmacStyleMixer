@@ -75,6 +75,48 @@ async function init(): Promise<void> {
   window.app.registerExtension({
     name: 'ImmacStyleMixer',
 
+    setup() {
+      // Allow mix cards dragged from the sidebar to be dropped onto the canvas,
+      // creating a StyleMixImmacStyleMixer node with that mix pre-selected.
+      const lgCanvas = (window.app as any).canvas
+      const canvasEl: HTMLCanvasElement | null = lgCanvas?.canvas ?? null
+      if (!canvasEl) return
+
+      canvasEl.addEventListener('dragover', (e: DragEvent) => {
+        if (e.dataTransfer?.types.includes('application/x-immac-mix-name')) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'copy'
+        }
+      })
+
+      canvasEl.addEventListener('drop', (e: DragEvent) => {
+        const mixName = e.dataTransfer?.getData('application/x-immac-mix-name')
+        if (!mixName) return
+        e.preventDefault()
+
+        // Convert screen coords → graph coords using LiteGraph's DragAndScale
+        const rect = canvasEl.getBoundingClientRect()
+        const ds = lgCanvas.ds
+        const graphX = (e.clientX - rect.left - ds.offset[0]) / ds.scale
+        const graphY = (e.clientY - rect.top - ds.offset[1]) / ds.scale
+
+        const LG = (window as any).LiteGraph
+        const node = LG?.createNode('StyleMixImmacStyleMixer')
+        if (!node) return
+        node.pos = [graphX, graphY]
+        ;(window.app as any).graph.add(node)
+
+        // Set the mix widget to the dragged mix name
+        const mixWidget = node.widgets?.find((w: any) => w.name === 'mix')
+        if (mixWidget) {
+          mixWidget.value = mixName
+          mixWidget.callback?.(mixName, null, null, null, node)
+        }
+
+        ;(window.app as any).graph.setDirtyCanvas(true, true)
+      })
+    },
+
     nodeCreated(node: any) {
       if (node.comfyClass !== 'StyleMixImmacStyleMixer') return
 
