@@ -113,15 +113,18 @@ async function init(): Promise<void> {
 
           if (!urls.length) {
             node.imgs = undefined
-            node.setSizeForImage?.()
             window.app?.graph?.setDirtyCanvas(true)
             return
           }
 
           const results = await Promise.allSettled(urls.map(loadImage))
           const loaded = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
-          node.imgs = loaded.length ? loaded : undefined
-          node.setSizeForImage?.()
+          if (loaded.length) {
+            node.imgs = loaded
+            node.setSizeForImage?.()
+          } else {
+            node.imgs = undefined
+          }
           window.app?.graph?.setDirtyCanvas(true)
         } catch (e) {
           console.error('[ImmacStyleMixer] Preview update failed', e)
