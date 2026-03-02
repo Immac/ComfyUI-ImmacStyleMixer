@@ -98,11 +98,11 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
         )}
 
         <button
-          title={mix.favorite ? 'Unfavorite' : 'Favorite'}
+          title={mix.favorite ? 'Remove bookmark' : 'Bookmark'}
           onClick={() => onUpdate({ ...mix, favorite: !mix.favorite })}
           style={iconBtn}
         >
-          {mix.favorite ? '★' : '☆'}
+          <i className={mix.favorite ? 'pi pi-bookmark-fill' : 'pi pi-bookmark'} />
         </button>
         <button title="Delete mix" onClick={onDelete} style={{ ...iconBtn, color: '#e55' }}>
           ✕

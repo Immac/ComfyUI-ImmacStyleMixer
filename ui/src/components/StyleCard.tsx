@@ -59,11 +59,11 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
       {/* Favorite + Delete row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button
-          title={style.favorite ? 'Unfavorite' : 'Favorite'}
+          title={style.favorite ? 'Remove bookmark' : 'Bookmark'}
           onClick={() => onUpdate({ ...style, favorite: !style.favorite })}
           style={iconBtn}
         >
-          {style.favorite ? '★' : '☆'}
+          <i className={style.favorite ? 'pi pi-bookmark-fill' : 'pi pi-bookmark'} />
         </button>
         <button title="Delete style" onClick={onDelete} style={{ ...iconBtn, color: '#e55' }}>
           ✕
