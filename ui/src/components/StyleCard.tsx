@@ -59,6 +59,11 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
 
   return (
     <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData('application/x-immac-style-id', style.id)
+        e.dataTransfer.effectAllowed = 'copy'
+      }}
       style={{
         border: '1px solid var(--p-surface-border, #444)',
         borderRadius: 8,
@@ -70,6 +75,7 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
         gap: 6,
         position: 'relative',
         overflow: 'hidden',
+        cursor: 'grab',
       }}
     >
       {/* Bookmark + Copy + Delete row */}

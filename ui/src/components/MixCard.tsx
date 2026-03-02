@@ -29,6 +29,7 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
   const [pendingDelete, setPendingDelete] = useState(false)
   const [imageHovered, setImageHovered] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [styleDragOver, setStyleDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   function copyPrompt() {
@@ -80,10 +81,10 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
   return (
     <div
       style={{
-        border: `2px solid ${isActive ? 'var(--p-primary-color, #6c6)' : 'var(--p-surface-border, #444)'}`,
+        border: `2px solid ${styleDragOver ? '#88aaff' : isActive ? 'var(--p-primary-color, #6c6)' : 'var(--p-surface-border, #444)'}`,
         borderRadius: 8,
         padding: 10,
-        background: 'var(--p-surface-section, #1e1e1e)',
+        background: styleDragOver ? 'rgba(100,130,255,0.07)' : 'var(--p-surface-section, #1e1e1e)',
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
@@ -91,8 +92,28 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
         position: 'relative',
         overflow: 'hidden',
         cursor: 'pointer',
+        transition: 'border-color 0.15s, background 0.15s',
       }}
       onClick={handleCardClick}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes('application/x-immac-style-id')) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'copy'
+          setStyleDragOver(true)
+        }
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setStyleDragOver(false)
+      }}
+      onDrop={(e) => {
+        setStyleDragOver(false)
+        const styleId = e.dataTransfer.getData('application/x-immac-style-id')
+        if (styleId) {
+          e.preventDefault()
+          e.stopPropagation()
+          addStyle(styleId)
+        }
+      }}
     >
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

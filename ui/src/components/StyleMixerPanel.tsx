@@ -68,6 +68,7 @@ export default function StyleMixerPanel() {
   const currentMix = data.mixes.find((m) => m.id === data.current_mix_id) ?? null
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const [hoveredChipId, setHoveredChipId] = useState<string | null>(null)
+  const [dragOverCurrentMix, setDragOverCurrentMix] = useState(false)
 
   // ── Style operations ────────────────────────────────────────────────────────
 
@@ -167,8 +168,33 @@ export default function StyleMixerPanel() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ fontWeight: 600, fontSize: 14 }}>{currentMix.name}</div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {currentMix.styles.length === 0 && (
+            <div
+              style={{
+                display: 'flex', gap: 8, flexWrap: 'wrap',
+                borderRadius: 6,
+                border: `1px dashed ${dragOverCurrentMix ? '#88aaff' : 'transparent'}`,
+                background: dragOverCurrentMix ? 'rgba(100,130,255,0.07)' : 'transparent',
+                padding: dragOverCurrentMix ? 4 : 0,
+                transition: 'border-color 0.15s, background 0.15s, padding 0.1s',
+                minHeight: 40,
+              }}
+              onDragOver={(e) => {
+                if (e.dataTransfer.types.includes('application/x-immac-style-id')) {
+                  e.preventDefault()
+                  e.dataTransfer.dropEffect = 'copy'
+                  setDragOverCurrentMix(true)
+                }
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverCurrentMix(false)
+              }}
+              onDrop={(e) => {
+                setDragOverCurrentMix(false)
+                const styleId = e.dataTransfer.getData('application/x-immac-style-id')
+                if (styleId) { e.preventDefault(); addStyleToCurrentMix(styleId) }
+              }}
+            >
+              {currentMix.styles.length === 0 && !dragOverCurrentMix && (
                 <div style={{ fontSize: 12, color: '#666' }}>No styles in this mix yet.</div>
               )}
               {currentMix.styles.map((entry) => {
