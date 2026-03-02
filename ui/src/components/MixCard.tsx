@@ -68,6 +68,8 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
         minWidth: 240,
         maxWidth: 340,
         flexShrink: 0,
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
       {/* Header row */}
@@ -118,7 +120,6 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
       {pendingDelete && (
         <div style={{
           position: 'absolute', inset: 0,
-          borderRadius: 8,
           background: 'rgba(20,20,20,0.92)',
           display: 'flex',
           flexDirection: 'column',
@@ -128,7 +129,7 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
           zIndex: 10,
         }}>
           <i className="pi pi-trash" style={{ fontSize: 22, color: '#e55' }} />
-          <span style={{ fontSize: 13, color: '#ddd', fontWeight: 600 }}>Delete mix?</span>
+          <span style={{ fontSize: 13, color: '#ddd', fontWeight: 600 }}>Delete "{mix.name}"?</span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               onClick={() => setPendingDelete(false)}

@@ -55,6 +55,7 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
         flexDirection: 'column',
         gap: 6,
         position: 'relative',
+        overflow: 'hidden',
       }}
     >
       {/* Bookmark + Delete row */}
@@ -75,7 +76,6 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
       {pendingDelete && (
         <div style={{
           position: 'absolute', inset: 0,
-          borderRadius: 8,
           background: 'rgba(20,20,20,0.92)',
           display: 'flex',
           flexDirection: 'column',
@@ -85,7 +85,7 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
           zIndex: 10,
         }}>
           <i className="pi pi-trash" style={{ fontSize: 22, color: '#e55' }} />
-          <span style={{ fontSize: 13, color: '#ddd', fontWeight: 600 }}>Delete style?</span>
+          <span style={{ fontSize: 13, color: '#ddd', fontWeight: 600 }}>Delete "{style.name}"?</span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               onClick={() => setPendingDelete(false)}
