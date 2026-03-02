@@ -7,10 +7,9 @@ interface Props {
   style: Style
   onUpdate: (updated: Style) => void
   onDelete: () => void
-  onDuplicate: () => void
 }
 
-export default function StyleCard({ style, onUpdate, onDelete, onDuplicate }: Props) {
+export default function StyleCard({ style, onUpdate, onDelete }: Props) {
   const [editingName, setEditingName] = useState(false)
   const [editingValue, setEditingValue] = useState(false)
   const [nameInput, setNameInput] = useState(style.name)
@@ -86,14 +85,9 @@ export default function StyleCard({ style, onUpdate, onDelete, onDuplicate }: Pr
           >
             <i className={style.favorite ? 'pi pi-bookmark-fill' : 'pi pi-bookmark'} />
           </button>
-          <div style={{ display: 'flex', gap: 2 }}>
-            <button title="Duplicate style" onClick={onDuplicate} style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)' }}>
-              <i className="pi pi-copy" />
-            </button>
-            <button title="Delete style" onClick={() => setPendingDelete(true)} style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)' }}>
-              <i className="pi pi-trash" />
-            </button>
-          </div>
+          <button title="Delete style" onClick={() => setPendingDelete(true)} style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)' }}>
+            <i className="pi pi-trash" />
+          </button>
         </div>
       )}
 

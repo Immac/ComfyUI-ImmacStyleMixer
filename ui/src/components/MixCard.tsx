@@ -10,9 +10,10 @@ interface Props {
   onActivate: () => void
   onUpdate: (updated: Mix) => void
   onDelete: () => void
+  onDuplicate: () => void
 }
 
-export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, onDelete }: Props) {
+export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, onDelete, onDuplicate }: Props) {
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(mix.name)
   const [uploading, setUploading] = useState(false)
@@ -104,6 +105,9 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
           style={iconBtn}
         >
           <i className={mix.favorite ? 'pi pi-bookmark-fill' : 'pi pi-bookmark'} />
+        </button>
+        <button title="Duplicate mix" onClick={onDuplicate} style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)' }}>
+          <i className="pi pi-copy" />
         </button>
         {pendingDelete ? (
           <>
