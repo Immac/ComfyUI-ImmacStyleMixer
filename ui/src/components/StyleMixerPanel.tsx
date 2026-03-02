@@ -215,10 +215,11 @@ export default function StyleMixerPanel() {
 }
 
 const panelStyle: React.CSSProperties = {
+  position: 'absolute',
+  inset: 0,
   padding: '0 12px',
   display: 'flex',
   flexDirection: 'column',
-  height: '100%',
   overflow: 'hidden',
   color: 'var(--p-text-color, #eee)',
   fontSize: 13,

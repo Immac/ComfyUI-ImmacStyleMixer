@@ -55,7 +55,11 @@ async function init(): Promise<void> {
     render: (element: HTMLElement) => {
       const container = document.createElement('div')
       container.id = 'immac-style-mixer-root'
-      container.style.height = '100%'
+      container.style.position = 'absolute'
+      container.style.inset = '0'
+      container.style.overflow = 'hidden'
+      element.style.position = 'relative'
+      element.style.height = '100%'
       element.appendChild(container)
 
       ReactDOM.createRoot(container).render(
