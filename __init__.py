@@ -6,10 +6,15 @@ from aiohttp import web
 import nodes
 
 from .src.immac_tools.api import register_routes
+from .src.immac_tools.style_mix_node import StyleMixNode
 
-# No custom nodes — this extension is UI-only (Style Mixer sidebar panel).
-NODE_CLASS_MAPPINGS = {}
-NODE_DISPLAY_NAME_MAPPINGS = {}
+# Node registry
+NODE_CLASS_MAPPINGS = {
+    "StyleMixImmacStyleMixer": StyleMixNode,
+}
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "StyleMixImmacStyleMixer": "Style Mix",
+}
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
 
 workspace_path = os.path.dirname(__file__)
