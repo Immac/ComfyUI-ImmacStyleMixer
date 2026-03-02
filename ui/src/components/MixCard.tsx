@@ -8,13 +8,15 @@ interface Props {
   mix: Mix
   styles: Style[]
   isActive: boolean
+  isDirty: boolean
   onActivate: () => void
   onUpdate: (updated: Mix) => void
   onDelete: () => void
   onDuplicate: () => void
+  onRefreshCache: () => void
 }
 
-export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, onDelete, onDuplicate }: Props) {
+export default function MixCard({ mix, styles, isActive, isDirty, onActivate, onUpdate, onDelete, onDuplicate, onRefreshCache }: Props) {
   function handleCardClick(e: React.MouseEvent) {
     const target = e.target as HTMLElement
     if (!target.closest('button, input, select, textarea, a')) onActivate()
@@ -100,6 +102,20 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
           </span>
         )}
 
+        {isDirty && (
+          <button
+            title="Pending node-cache changes — click to reload"
+            onClick={(e) => { e.stopPropagation(); onRefreshCache() }}
+            style={{
+              ...iconBtn,
+              color: '#f5a623',
+              fontSize: 14,
+              animation: 'immac-pulse 1.8s ease-in-out infinite',
+            }}
+          >
+            <i className="pi pi-exclamation-circle" />
+          </button>
+        )}
         <button
           title={mix.favorite ? 'Remove bookmark' : 'Bookmark'}
           onClick={() => onUpdate({ ...mix, favorite: !mix.favorite })}
@@ -340,3 +356,15 @@ const inputStyle: React.CSSProperties = {
   fontSize: 12,
   boxSizing: 'border-box',
 }
+
+// Inject pulse keyframe once.
+;(() => {
+  if (document.getElementById('immac-pulse-style')) return
+  const s = document.createElement('style')
+  s.id = 'immac-pulse-style'
+  s.textContent = `@keyframes immac-pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:0.55; transform:scale(1.15); }
+}`
+  document.head.appendChild(s)
+})()

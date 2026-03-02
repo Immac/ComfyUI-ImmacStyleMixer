@@ -62,7 +62,7 @@ function CollapsibleSection({ title, children, defaultOpen = true, grow = true }
 }
 
 export default function StyleMixerPanel() {
-  const { data, loading, error, update } = useStyleMixerData()
+  const { data, loading, error, update, dirtyMixIds, refreshNodes } = useStyleMixerData()
 
   const currentMix = data.mixes.find((m) => m.id === data.current_mix_id) ?? null
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
@@ -238,10 +238,12 @@ export default function StyleMixerPanel() {
               mix={mix}
               styles={data.styles}
               isActive={mix.id === data.current_mix_id}
+              isDirty={dirtyMixIds.has(mix.id)}
               onActivate={() => setCurrentMix(mix.id)}
               onUpdate={updateMix}
               onDelete={() => deleteMix(mix.id)}
               onDuplicate={() => duplicateMix(mix)}
+              onRefreshCache={refreshNodes}
             />
           ))}
           <button
