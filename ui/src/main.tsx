@@ -81,30 +81,48 @@ async function init(): Promise<void> {
       const mixWidget = node.widgets?.find((w: any) => w.name === 'mix')
       if (!mixWidget) return
 
+      function loadImage(url: string): Promise<HTMLImageElement> {
+        return new Promise((resolve, reject) => {
+          const img = new Image()
+          img.onload = () => resolve(img)
+          img.onerror = reject
+          img.src = url
+        })
+      }
+
       async function updatePreview(mixName: string) {
         try {
           const resp = await fetch('/immac_style_mixer/api/data')
           if (!resp.ok) return
           const data = await resp.json()
           const mix = data.mixes?.find((m: any) => m.name === mixName)
-          if (!mix?.image_filename) {
+
+          let urls: string[] = []
+
+          if (mix?.image_filename) {
+            urls = [`/view?filename=${encodeURIComponent(mix.image_filename)}&subfolder=immac_style_mixer%2Fmixes&type=input`]
+          } else if (mix?.styles?.length) {
+            // Fall back to style thumbnails for enabled entries
+            const stylesById = Object.fromEntries((data.styles ?? []).map((s: any) => [s.id, s]))
+            urls = (mix.styles as any[])
+              .filter((e) => e.enabled !== false)
+              .map((e) => stylesById[e.style_id])
+              .filter((s) => s?.image_filename)
+              .map((s) => `/view?filename=${encodeURIComponent(s.image_filename)}&subfolder=immac_style_mixer%2Fstyles&type=input`)
+          }
+
+          if (!urls.length) {
             node.imgs = undefined
             node.setSizeForImage?.()
             window.app?.graph?.setDirtyCanvas(true)
             return
           }
-          const url = `/view?filename=${encodeURIComponent(mix.image_filename)}&subfolder=immac_style_mixer%2Fmixes&type=input`
-          const img = new Image()
-          img.onload = () => {
-            node.imgs = [img]
-            node.setSizeForImage?.()
-            window.app?.graph?.setDirtyCanvas(true)
-          }
-          img.onerror = () => {
-            node.imgs = undefined
-            window.app?.graph?.setDirtyCanvas(true)
-          }
-          img.src = url
+
+          const results = await Promise.allSettled(urls.map(loadImage))
+          const loaded = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
+          node.imgs = loaded.length ? loaded : undefined
+          node.setSizeForImage?.()
+          window.app?.graph?.setDirtyCanvas(true)
         } catch (e) {
           console.error('[ImmacStyleMixer] Preview update failed', e)
         }
