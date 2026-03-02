@@ -295,6 +295,23 @@ export default function StyleMixerPanel() {
                             width="100%"
                           />
                         </div>
+                        {/* Remove button */}
+                        <button
+                          title="Remove from mix"
+                          onClick={(e) => { e.stopPropagation(); removeStyleFromCurrentMix(entry.style_id) }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#e66',
+                            fontSize: 13,
+                            padding: '0 2px',
+                            lineHeight: 1,
+                            flexShrink: 0,
+                          }}
+                        >
+                          ✕
+                        </button>
                       </div>
                     </div>
                   </div>
