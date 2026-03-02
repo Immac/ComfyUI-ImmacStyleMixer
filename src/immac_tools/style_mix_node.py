@@ -1,5 +1,6 @@
 """StyleMixNode — picks a saved mix and outputs its assembled prompt string."""
 
+import hashlib
 import json
 import os
 from typing import Any
@@ -47,6 +48,14 @@ def _build_prompt(mix_name: str) -> str:
     return ", ".join(parts)
 
 
+def _mix_image_filename(mix_name: str) -> str | None:
+    data = _load_data()
+    mix = next((m for m in data.get("mixes", []) if m["name"] == mix_name), None)
+    if mix is None:
+        return None
+    return mix.get("image_filename") or None
+
+
 class StyleMixNode:
     """Outputs the assembled prompt string for a saved style mix."""
 
@@ -62,7 +71,27 @@ class StyleMixNode:
     RETURN_NAMES = ("prompt",)
     FUNCTION = "execute"
     CATEGORY = "Immac/Style Mixer"
+    OUTPUT_NODE = True
     DESCRIPTION = "Outputs the prompt text assembled from the selected style mix."
 
-    def execute(self, mix: str) -> tuple[str]:
-        return (_build_prompt(mix),)
+    @classmethod
+    def IS_CHANGED(cls, mix: str) -> str:
+        """Return a hash of the mix name + its image filename so ComfyUI re-runs on change."""
+        data = _load_data()
+        m = next((m for m in data.get("mixes", []) if m["name"] == mix), None)
+        key = mix + (m.get("image_filename") or "") if m else mix
+        return hashlib.md5(key.encode()).hexdigest()
+
+    def execute(self, mix: str) -> dict:
+        prompt = _build_prompt(mix)
+        image_filename = _mix_image_filename(mix)
+
+        ui_images: list[dict] = []
+        if image_filename:
+            ui_images.append({
+                "filename": image_filename,
+                "subfolder": "",
+                "type": "output",
+            })
+
+        return {"ui": {"images": ui_images}, "result": (prompt,)}
