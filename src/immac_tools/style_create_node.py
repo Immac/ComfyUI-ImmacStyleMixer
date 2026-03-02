@@ -35,9 +35,11 @@ def _save_data(data: dict) -> None:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
-def _save_image_tensor(tensor: Any, style_name: str) -> str:
+def _save_image_tensor(tensor: Any, style_name: str, existing_filename: str | None = None) -> str:
     """Save a ComfyUI IMAGE tensor ([B,H,W,C] float32 0-1) to the input folder.
 
+    If *existing_filename* is provided the file is overwritten in place so that
+    the stored filename reference in the JSON stays stable.
     Returns the filename (basename only) that was written.
     """
     import folder_paths  # available at runtime inside ComfyUI
@@ -51,9 +53,14 @@ def _save_image_tensor(tensor: Any, style_name: str) -> str:
     arr = (frame.cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
     img = Image.fromarray(arr)
 
-    # Build a safe filename: sanitise style name + short uuid
-    safe = re.sub(r"[^\w\-]", "_", style_name)[:40]
-    filename = f"style_{safe}_{uuid.uuid4().hex[:8]}.png"
+    if existing_filename:
+        # Overwrite the existing file in place — keeps the JSON reference stable
+        filename = existing_filename
+    else:
+        # Generate a new unique filename
+        safe = re.sub(r"[^\w\-]", "_", style_name)[:40]
+        filename = f"style_{safe}_{uuid.uuid4().hex[:8]}.png"
+
     img.save(os.path.join(out_dir, filename))
     return filename
 
@@ -120,10 +127,13 @@ class StyleCreateNode:
             """Save image tensor and set image_filename on the style dict if provided."""
             if img is None:
                 return
-            if not force and style.get("image_filename"):
+            existing = style.get("image_filename") or None
+            if not force and existing:
                 # Don't clobber an existing image unless forced (Overwrite mode)
                 return
-            style["image_filename"] = _save_image_tensor(img, name)
+            # Reuse the existing filename so the file is overwritten in place;
+            # only generates a new name when there is none yet.
+            style["image_filename"] = _save_image_tensor(img, name, existing_filename=existing)
 
         if creation_mode == "Create":
             if existing is not None:
