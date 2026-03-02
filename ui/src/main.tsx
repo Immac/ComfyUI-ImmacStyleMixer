@@ -81,14 +81,14 @@ async function init(): Promise<void> {
       const mixWidget = node.widgets?.find((w: any) => w.name === 'mix')
       if (!mixWidget) return
 
-      function loadImage(url: string): Promise<HTMLImageElement> {
-        return new Promise((resolve, reject) => {
-          const img = new Image()
-          img.onload = () => resolve(img)
-          img.onerror = reject
-          img.src = url
-        })
-      }
+      // Create a DOM-based image preview widget so we bypass the deprecated
+      // node.imgs / setSizeForImage path that no longer works in the new frontend.
+      const imgEl = document.createElement('img')
+      imgEl.style.cssText = 'width:100%;display:none;object-fit:contain;border-radius:4px'
+      const container = document.createElement('div')
+      container.style.cssText = 'padding:4px'
+      container.appendChild(imgEl)
+      node.addDOMWidget('immac_mix_preview', 'div', container, { serialize: false })
 
       async function updatePreview(mixName: string) {
         try {
@@ -97,55 +97,49 @@ async function init(): Promise<void> {
           const data = await resp.json()
           const mix = data.mixes?.find((m: any) => m.name === mixName)
 
-          let urls: string[] = []
+          let url = ''
 
           if (mix?.image_filename) {
-            urls = [`/view?filename=${encodeURIComponent(mix.image_filename)}&subfolder=immac_style_mixer%2Fmixes&type=input`]
+            url = `/view?filename=${encodeURIComponent(mix.image_filename)}&subfolder=immac_style_mixer%2Fmixes&type=input`
           } else if (mix?.styles?.length) {
-            // Fall back to style thumbnails for enabled entries
+            // Fall back to the first enabled style that has a thumbnail
             const stylesById = Object.fromEntries((data.styles ?? []).map((s: any) => [s.id, s]))
-            urls = (mix.styles as any[])
+            const first = (mix.styles as any[])
               .filter((e) => e.enabled !== false)
               .map((e) => stylesById[e.style_id])
-              .filter((s) => s?.image_filename)
-              .map((s) => `/view?filename=${encodeURIComponent(s.image_filename)}&subfolder=immac_style_mixer%2Fstyles&type=input`)
+              .find((s) => s?.image_filename)
+            if (first) {
+              url = `/view?filename=${encodeURIComponent(first.image_filename)}&subfolder=immac_style_mixer%2Fstyles&type=input`
+            }
           }
 
-          if (!urls.length) {
-            node.imgs = undefined
-            window.app?.graph?.setDirtyCanvas(true)
+          if (!url) {
+            imgEl.style.display = 'none'
             return
           }
 
-          const results = await Promise.allSettled(urls.map(loadImage))
-          const loaded = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
-          if (loaded.length) {
-            node.imgs = loaded
-            node.setSizeForImage?.()
-          } else {
-            node.imgs = undefined
+          imgEl.onload = () => {
+            imgEl.style.display = 'block'
+            window.app?.graph?.setDirtyCanvas(true)
           }
-          window.app?.graph?.setDirtyCanvas(true)
+          imgEl.onerror = () => { imgEl.style.display = 'none' }
+          imgEl.src = url
         } catch (e) {
           console.error('[ImmacStyleMixer] Preview update failed', e)
         }
       }
 
-      // Intercept value changes via property descriptor so arrow-button changes
-      // and programmatic assignments are also caught (callback alone is not reliable)
-      let _mixValue: string = mixWidget.value ?? ''
-      Object.defineProperty(mixWidget, 'value', {
-        configurable: true,
-        enumerable: true,
-        get() { return _mixValue },
-        set(v: string) {
-          _mixValue = v
-          updatePreview(v)
-        },
-      })
+      // ComfyUI combo widgets reliably call widget.callback() when the value
+      // changes (arrow buttons, context menu, programmatic set). Reading
+      // widget.value inside the callback returns the already-updated value.
+      const origCallback = mixWidget.callback
+      mixWidget.callback = function (...args: any[]) {
+        origCallback?.apply(this, args)
+        updatePreview(String(mixWidget.value ?? ''))
+      }
 
       // Show initial preview without executing
-      if (_mixValue) updatePreview(_mixValue)
+      if (mixWidget.value) updatePreview(String(mixWidget.value))
     },
   })
 }
