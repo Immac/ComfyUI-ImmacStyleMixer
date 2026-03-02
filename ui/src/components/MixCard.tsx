@@ -65,9 +65,7 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
-        minWidth: 240,
-        maxWidth: 340,
-        flexShrink: 0,
+        width: '100%',
         position: 'relative',
         overflow: 'hidden',
       }}

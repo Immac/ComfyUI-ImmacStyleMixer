@@ -27,7 +27,7 @@ export default function StyleGallery({ styles, onUpdate, onDelete, onAdd }: Prop
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
         {sorted.map((s) => (
           <StyleCard
             key={s.id}
@@ -44,7 +44,6 @@ export default function StyleGallery({ styles, onUpdate, onDelete, onAdd }: Prop
               border: '1px dashed var(--p-primary-color, #6c6)',
               borderRadius: 8,
               padding: 10,
-              width: 180,
               display: 'flex',
               flexDirection: 'column',
               gap: 8,
@@ -70,8 +69,7 @@ export default function StyleGallery({ styles, onUpdate, onDelete, onAdd }: Prop
             title="Add a new style"
             onClick={() => setAdding(true)}
             style={{
-              width: 180,
-              aspectRatio: 'unset',
+              width: '100%',
               minHeight: 80,
               border: '1px dashed var(--p-surface-border, #555)',
               borderRadius: 8,
@@ -79,7 +77,6 @@ export default function StyleGallery({ styles, onUpdate, onDelete, onAdd }: Prop
               color: '#666',
               cursor: 'pointer',
               fontSize: 24,
-              flexShrink: 0,
             }}
           >
             +

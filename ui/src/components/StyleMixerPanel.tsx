@@ -200,7 +200,7 @@ export default function StyleMixerPanel() {
 
       {/* ── Mixes ────────────────────────────────────────────────────────── */}
       <CollapsibleSection title="Mixes">
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
           {sortedMixes.map((mix) => (
             <MixCard
               key={mix.id}
@@ -217,15 +217,14 @@ export default function StyleMixerPanel() {
             title="Add a new mix"
             onClick={addMix}
             style={{
-              minWidth: 80,
-              minHeight: 60,
+              width: '100%',
+              minHeight: 80,
               border: '1px dashed var(--p-surface-border, #555)',
               borderRadius: 8,
               background: 'transparent',
               color: '#666',
               cursor: 'pointer',
               fontSize: 22,
-              alignSelf: 'flex-start',
             }}
           >
             +
