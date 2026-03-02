@@ -4,6 +4,7 @@ import { Mix, MixEntry, Style, StyleMixerData } from '../types'
 import MixCard from './MixCard'
 import StyleGallery from './StyleGallery'
 import ImageLightbox from './ImageLightbox'
+import BarInput from './BarInput'
 
 function uid(): string {
   return crypto.randomUUID()
@@ -129,6 +130,14 @@ export default function StyleMixerPanel() {
     update((prev) => ({ ...prev, current_mix_id: id }))
   }, [update])
 
+  const updateCurrentMixEntry = useCallback((styleId: string, patch: Partial<MixEntry>) => {
+    if (!currentMix) return
+    updateMix({
+      ...currentMix,
+      styles: currentMix.styles.map((e) => e.style_id === styleId ? { ...e, ...patch } : e),
+    })
+  }, [currentMix, updateMix])
+
   if (loading) return <div style={panelStyle}>Loading…</div>
   if (error) return <div style={{ ...panelStyle, color: '#e55' }}>Error: {error}</div>
 
@@ -216,10 +225,40 @@ export default function StyleMixerPanel() {
                         </button>
                       )}
                     </div>
-                    {/* Name + weight */}
-                    <div style={{ padding: '4px 6px', textAlign: 'center', width: '100%', boxSizing: 'border-box' }}>
-                      <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{style?.name ?? '?'}</div>
-                      <div style={{ color: '#aaa', fontSize: 11 }}>×{entry.weight.toFixed(2)}</div>
+                    {/* Name + controls */}
+                    <div style={{ padding: '4px 6px', width: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center', fontSize: 12 }}>{style?.name ?? '?'}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {/* ON/OFF toggle */}
+                        <button
+                          title={entry.enabled ? 'Disable style' : 'Enable style'}
+                          onClick={(e) => { e.stopPropagation(); updateCurrentMixEntry(entry.style_id, { enabled: !entry.enabled }) }}
+                          style={{
+                            background: entry.enabled ? 'var(--p-primary-color, #557755)' : 'transparent',
+                            border: '1px solid var(--p-surface-border, #555)',
+                            borderRadius: 4,
+                            color: entry.enabled ? '#fff' : '#888',
+                            cursor: 'pointer',
+                            fontSize: 10,
+                            padding: '1px 4px',
+                            lineHeight: 1,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {entry.enabled ? 'ON' : 'OFF'}
+                        </button>
+                        {/* Weight bar */}
+                        <div style={{ flex: 1, minWidth: 0 }} onClick={(e) => e.stopPropagation()}>
+                          <BarInput
+                            value={entry.weight}
+                            onChange={(v) => updateCurrentMixEntry(entry.style_id, { weight: v })}
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            width="100%"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )
