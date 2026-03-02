@@ -59,3 +59,26 @@ adding a React/TypeScript Style Mixer UI alongside the existing custom nodes.
 - Sidebar tab (not floating window) for the panel
 - `dist/` tracked in git — required for registry publishing via `includes = ["dist/"]`
 - Styles are user-defined strings (prompt text snippets)
+
+---
+
+## Dev Notes
+
+### Style Mix node — preview image on widget change
+
+**Goal:** show the selected mix's cover image (or a style fallback) in the node body when the `mix` combo widget changes, without triggering execution.
+
+**What doesn't work in the current ComfyUI frontend:**
+
+- `node.imgs` + `setSizeForImage()` — deprecated. Setting `node.imgs` has no visible effect unless a `$$canvas-image-preview` DOM widget is already present on the node, which only happens after the node executes at least once (via `onExecuted`). `setSizeForImage` is explicitly `@deprecated` in the frontend's type definitions.
+- `Object.defineProperty` on `widget.value` — the `ComboWidget` class stores its value in a private field. Shadowing `.value` on the instance intercepts external assignments but misses internal stepped-widget logic that writes to the private field directly (e.g. arrow button navigation).
+
+**What works:**
+
+- `node.addDOMWidget(...)` injects a real `<img>` HTML element into the node body. It renders immediately on node creation, is fully controlled by us, and isn't subject to any of the deprecation or class-internals issues.
+- `mixWidget.callback` wrapping is the correct hook for value changes — ComfyUI calls it reliably on all interaction paths (arrows, context menu, programmatic `widget.callback?.(value)` calls). `widget.value` is already updated by the time callback fires.
+
+**Implementation** (`ui/src/main.tsx`, `nodeCreated` hook):
+1. Create a `<div><img></div>` DOM widget on the node (`serialize: false`).
+2. Wrap `mixWidget.callback` to call `updatePreview(mixWidget.value)`.
+3. `updatePreview` fetches `/immac_style_mixer/api/data`, finds the mix, resolves the image URL (mix cover → first enabled style thumbnail → nothing), and sets `imgEl.src`. The `<img>` is hidden until loaded.
