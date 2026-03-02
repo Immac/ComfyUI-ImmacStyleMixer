@@ -131,15 +131,21 @@ async function init(): Promise<void> {
         }
       }
 
-      // Wrap the widget callback to intercept value changes
-      const origCallback = mixWidget.callback
-      mixWidget.callback = function (value: string) {
-        if (origCallback) origCallback.call(this, value)
-        updatePreview(value)
-      }
+      // Intercept value changes via property descriptor so arrow-button changes
+      // and programmatic assignments are also caught (callback alone is not reliable)
+      let _mixValue: string = mixWidget.value ?? ''
+      Object.defineProperty(mixWidget, 'value', {
+        configurable: true,
+        enumerable: true,
+        get() { return _mixValue },
+        set(v: string) {
+          _mixValue = v
+          updatePreview(v)
+        },
+      })
 
       // Show initial preview without executing
-      if (mixWidget.value) updatePreview(mixWidget.value)
+      if (_mixValue) updatePreview(_mixValue)
     },
   })
 }
