@@ -10,38 +10,6 @@ declare global {
 
 const StyleMixerPanel = React.lazy(() => import('./components/StyleMixerPanel'))
 
-function LoadingBars() {
-  const bar = (delay: string): React.CSSProperties => ({
-    display: 'inline-block',
-    width: '4px',
-    height: '24px',
-    margin: '0 2px',
-    borderRadius: '2px',
-    background: 'var(--p-primary-color, #7c3aed)',
-    animation: 'immac-fill-bar 0.7s ease-in-out infinite alternate',
-    animationDelay: delay,
-  })
-  return (
-    <>
-      <style>{`
-        @keyframes immac-fill-bar {
-          0%   { transform: scaleY(0.15); opacity: 0.4; }
-          100% { transform: scaleY(1);    opacity: 1;   }
-        }
-      `}</style>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={bar('0s')} />
-          <span style={bar('0.12s')} />
-          <span style={bar('0.24s')} />
-          <span style={bar('0.36s')} />
-          <span style={bar('0.48s')} />
-        </div>
-      </div>
-    </>
-  )
-}
-
 function waitForApp(): Promise<void> {
   return new Promise((resolve) => {
     function check() {
@@ -96,7 +64,7 @@ async function init(): Promise<void> {
 
       ReactDOM.createRoot(container).render(
         <React.StrictMode>
-          <Suspense fallback={<LoadingBars />}>
+          <Suspense fallback={<div style={{ padding: '1rem' }}>Loading…</div>}>
             <StyleMixerPanel />
           </Suspense>
         </React.StrictMode>

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Mix, MixEntry, Style } from '../types'
 import { mixImageUrl, uploadMixImage } from '../hooks/useStyleMixerData'
 import ImageLightbox from './ImageLightbox'
+import BarInput from './BarInput'
 
 interface Props {
   mix: Mix
@@ -254,14 +255,13 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
               </span>
 
               {/* Weight input */}
-              <input
-                type="number"
-                min={0}
-                max={2}
-                step={0.05}
+              <BarInput
                 value={entry.weight}
-                onChange={(e) => updateEntry(i, { weight: parseFloat(e.target.value) || 0 })}
-                style={{ ...inputStyle, width: 52, textAlign: 'right' }}
+                onChange={(v) => updateEntry(i, { weight: v })}
+                min={0}
+                max={1}
+                step={0.05}
+                width={64}
               />
 
               <button title="Remove from mix" onClick={() => removeEntry(i)} style={{ ...iconBtn, color: '#e55', fontSize: 13 }}>
