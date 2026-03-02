@@ -8,13 +8,13 @@ function uid(): string {
   return crypto.randomUUID()
 }
 
-function CollapsibleSection({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+function CollapsibleSection({ title, children, defaultOpen = true, grow = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean; grow?: boolean }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      flex: open ? '1 1 0' : '0 0 auto',
+      flex: open && grow ? '1 1 0' : '0 0 auto',
       minHeight: 0,
       borderBottom: '1px solid var(--p-surface-border, #333)',
     }}>
@@ -126,7 +126,7 @@ export default function StyleMixerPanel() {
   return (
     <div style={panelStyle}>
       {/* ── Current Mix ──────────────────────────────────────────────────── */}
-      <CollapsibleSection title="Current Mix">
+      <CollapsibleSection title="Current Mix" grow={false}>
         {!currentMix ? (
           <div style={{ fontSize: 12, color: '#666' }}>
             No mix active — select one from Mixes below.
