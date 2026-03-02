@@ -3,6 +3,7 @@ import { useStyleMixerData, styleImageUrl } from '../hooks/useStyleMixerData'
 import { Mix, MixEntry, Style, StyleMixerData } from '../types'
 import MixCard from './MixCard'
 import StyleGallery from './StyleGallery'
+import ImageLightbox from './ImageLightbox'
 
 function uid(): string {
   return crypto.randomUUID()
@@ -64,6 +65,7 @@ export default function StyleMixerPanel() {
   const { data, loading, error, update } = useStyleMixerData()
 
   const currentMix = data.mixes.find((m) => m.id === data.current_mix_id) ?? null
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
 
   // ── Style operations ────────────────────────────────────────────────────────
 
@@ -184,6 +186,28 @@ export default function StyleMixerPanel() {
                           <i className="pi pi-image" style={{ fontSize: 20, color: '#555' }} />
                         )}
                       </div>
+                      {style?.image_filename && (
+                        <button
+                          title="View full size"
+                          onClick={() => setLightboxSrc(styleImageUrl(style.image_filename!))}
+                          style={{
+                            position: 'absolute',
+                            top: 6,
+                            left: 6,
+                            background: 'rgba(255,255,255,0.92)',
+                            border: 'none',
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                            fontSize: 13,
+                            padding: '3px 6px',
+                            lineHeight: 1,
+                            color: '#222',
+                            boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+                          }}
+                        >
+                          <i className="pi pi-search-plus" />
+                        </button>
+                      )}
                     </div>
                     {/* Name + weight */}
                     <div style={{ padding: '4px 6px', textAlign: 'center', width: '100%', boxSizing: 'border-box' }}>
@@ -241,6 +265,9 @@ export default function StyleMixerPanel() {
           onAdd={addStyle}
         />
       </CollapsibleSection>
+      {lightboxSrc && (
+        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      )}
     </div>
   )
 }
