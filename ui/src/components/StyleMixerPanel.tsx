@@ -31,6 +31,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function StyleMixerPanel() {
   const { data, loading, error, update } = useStyleMixerData()
+  const [mixFilter, setMixFilter] = useState('')
 
   const currentMix = data.mixes.find((m) => m.id === data.current_mix_id) ?? null
 
@@ -91,8 +92,6 @@ export default function StyleMixerPanel() {
   const favoritesMixes = data.mixes.filter((m) => m.favorite)
   const restMixes = data.mixes.filter((m) => !m.favorite)
   const sortedMixes = [...favoritesMixes, ...restMixes]
-
-  const [mixFilter, setMixFilter] = useState('')
   const filteredMixes = mixFilter.trim()
     ? sortedMixes.filter((m) => m.name.toLowerCase().includes(mixFilter.toLowerCase()))
     : sortedMixes
