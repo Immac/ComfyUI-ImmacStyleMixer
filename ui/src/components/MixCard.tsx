@@ -28,7 +28,20 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState(false)
   const [imageHovered, setImageHovered] = useState(false)
+  const [copied, setCopied] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  function copyPrompt() {
+    const parts = mix.styles
+      .filter((e) => e.enabled)
+      .map((e) => styles.find((s) => s.id === e.style_id)?.value ?? '')
+      .filter(Boolean)
+    if (parts.length === 0) return
+    navigator.clipboard.writeText(parts.join(', ')).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
 
   async function handleImageFile(file: File) {
     if (!file.type.startsWith('image/')) return
@@ -126,6 +139,19 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
         <button title="Duplicate mix" onClick={onDuplicate} style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)' }}>
           <i className="pi pi-copy" />
         </button>
+        {(() => {
+          const hasPrompt = mix.styles.some((e) => e.enabled && styles.find((s) => s.id === e.style_id)?.value)
+          return (
+            <button
+              title={hasPrompt ? 'Copy combined prompt' : 'No enabled styles with prompt text'}
+              onClick={(e) => { e.stopPropagation(); copyPrompt() }}
+              disabled={!hasPrompt}
+              style={{ ...iconBtn, color: copied ? '#6c6' : 'var(--p-text-muted-color, #888)', opacity: hasPrompt ? 1 : 0.35 }}
+            >
+              <i className={copied ? 'pi pi-check' : 'pi pi-clipboard'} />
+            </button>
+          )
+        })()}
         <button title="Delete mix" onClick={() => setPendingDelete(true)} style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)' }}>
           <i className="pi pi-trash" />
         </button>

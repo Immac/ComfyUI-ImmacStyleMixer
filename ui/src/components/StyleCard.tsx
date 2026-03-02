@@ -18,7 +18,16 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState(false)
   const [imageHovered, setImageHovered] = useState(false)
+  const [copied, setCopied] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  function copyPrompt() {
+    if (!style.value) return
+    navigator.clipboard.writeText(style.value).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
 
   function commitName() {
     setEditingName(false)
@@ -58,7 +67,7 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
         overflow: 'hidden',
       }}
     >
-      {/* Bookmark + Delete row */}
+      {/* Bookmark + Copy + Delete row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button
           title={style.favorite ? 'Remove bookmark' : 'Bookmark'}
@@ -67,9 +76,19 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
         >
           <i className={style.favorite ? 'pi pi-bookmark-fill' : 'pi pi-bookmark'} />
         </button>
-        <button title="Delete style" onClick={() => setPendingDelete(true)} style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)' }}>
-          <i className="pi pi-trash" />
-        </button>
+        <div style={{ display: 'flex', gap: 2 }}>
+          <button
+            title={style.value ? 'Copy prompt text' : 'No prompt text to copy'}
+            onClick={copyPrompt}
+            disabled={!style.value}
+            style={{ ...iconBtn, color: copied ? '#6c6' : 'var(--p-text-muted-color, #888)', opacity: style.value ? 1 : 0.35 }}
+          >
+            <i className={copied ? 'pi pi-check' : 'pi pi-clipboard'} />
+          </button>
+          <button title="Delete style" onClick={() => setPendingDelete(true)} style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)' }}>
+            <i className="pi pi-trash" />
+          </button>
+        </div>
       </div>
 
       {/* Delete confirmation overlay */}
