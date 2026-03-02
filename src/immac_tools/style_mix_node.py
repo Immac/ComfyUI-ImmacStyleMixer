@@ -4,14 +4,14 @@ import json
 import os
 from typing import Any
 
-_DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "style_mixer_data.json")
-
+_DATA_FILE_PATH = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "style_mixer_data.json")
+)
 
 def _load_data() -> dict:
-    path = os.path.normpath(_DATA_FILE)
-    if not os.path.exists(path):
+    if not os.path.exists(_DATA_FILE_PATH):
         return {"styles": [], "mixes": [], "current_mix_id": None}
-    with open(path, "r", encoding="utf-8") as f:
+    with open(_DATA_FILE_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -63,6 +63,14 @@ class StyleMixNode:
     FUNCTION = "execute"
     CATEGORY = "Immac/Style Mixer"
     DESCRIPTION = "Outputs the prompt text assembled from the selected style mix."
+
+    @classmethod
+    def IS_CHANGED(cls, mix: str) -> float:
+        """Return the data file's mtime so ComfyUI invalidates the cache on every save."""
+        try:
+            return os.path.getmtime(_DATA_FILE_PATH)
+        except OSError:
+            return float("nan")
 
     def execute(self, mix: str) -> tuple[str]:
         return (_build_prompt(mix),)
