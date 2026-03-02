@@ -66,6 +66,7 @@ export default function StyleMixerPanel() {
 
   const currentMix = data.mixes.find((m) => m.id === data.current_mix_id) ?? null
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const [hoveredChipId, setHoveredChipId] = useState<string | null>(null)
 
   // ── Style operations ────────────────────────────────────────────────────────
 
@@ -155,6 +156,8 @@ export default function StyleMixerPanel() {
                 return (
                   <div
                     key={entry.style_id}
+                    onMouseEnter={() => setHoveredChipId(entry.style_id)}
+                    onMouseLeave={() => setHoveredChipId(null)}
                     style={{
                       border: `1px solid ${entry.enabled ? 'var(--p-primary-color, #6c6)' : 'var(--p-surface-border, #444)'}`,
                       borderRadius: 6,
@@ -180,13 +183,17 @@ export default function StyleMixerPanel() {
                           <img
                             src={styleImageUrl(style.image_filename)}
                             alt={style.name}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            style={{
+                              width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+                              transition: 'transform 0.3s ease',
+                              transform: hoveredChipId === entry.style_id ? 'scale(1.05)' : 'scale(1)',
+                            }}
                           />
                         ) : (
                           <i className="pi pi-image" style={{ fontSize: 20, color: '#555' }} />
                         )}
                       </div>
-                      {style?.image_filename && (
+                      {style?.image_filename && hoveredChipId === entry.style_id && (
                         <button
                           title="View full size"
                           onClick={() => setLightboxSrc(styleImageUrl(style.image_filename!))}

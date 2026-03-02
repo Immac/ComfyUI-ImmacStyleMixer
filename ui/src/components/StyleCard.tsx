@@ -17,6 +17,7 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
   const [uploading, setUploading] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState(false)
+  const [imageHovered, setImageHovered] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   function commitName() {
@@ -103,7 +104,11 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
       )}
 
       {/* Image area */}
-      <div style={{ position: 'relative', width: '100%', paddingBottom: '100%' }}>
+      <div
+        style={{ position: 'relative', width: '100%', paddingBottom: '100%' }}
+        onMouseEnter={() => setImageHovered(true)}
+        onMouseLeave={() => setImageHovered(false)}
+      >
         <div
           title="Click or drop to upload image"
           onClick={() => fileRef.current?.click()}
@@ -134,13 +139,17 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
             <img
               src={styleImageUrl(style.image_filename)}
               alt={style.name}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              style={{
+                width: '100%', height: '100%', objectFit: 'cover',
+                transition: 'transform 0.3s ease',
+                transform: imageHovered ? 'scale(1.05)' : 'scale(1)',
+              }}
             />
           ) : (
             '+ image'
           )}
         </div>
-        {!uploading && style.image_filename && (
+        {!uploading && style.image_filename && imageHovered && (
           <button
             title="View full size"
             onClick={(e) => { e.stopPropagation(); setLightboxOpen(true) }}
