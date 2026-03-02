@@ -23,7 +23,9 @@ export function useStyleMixerData() {
 
   // Debounced save — writes 400ms after the last update.
   // Also schedules a node-definition refresh 1500ms after the last update so
-  // that the StyleMixNode combo widget stays in sync with mix names.
+  // that the StyleMixNode combo widget stays in sync with mix names — but only
+  // when the mix list itself changes (add / rename / delete), not when the
+  // selected mix changes.
   const update = useCallback((next: StyleMixerData | ((prev: StyleMixerData) => StyleMixerData)) => {
     setData((prev) => {
       const resolved = typeof next === 'function' ? next(prev) : next
@@ -36,16 +38,20 @@ export function useStyleMixerData() {
         }).catch((e: unknown) => console.error('[ImmacStyleMixer] Save failed', e))
       }, 400)
 
-      // Refresh ComfyUI node definitions after save settles so the mix combo
-      // widget reflects any added / renamed / deleted mixes.
-      if (refreshTimer.current) clearTimeout(refreshTimer.current)
-      refreshTimer.current = setTimeout(() => {
-        try {
-          ;(window as any).app?.refreshComboInNodes?.()
-        } catch (e) {
-          console.warn('[ImmacStyleMixer] refreshComboInNodes failed', e)
-        }
-      }, 1500)
+      // Refresh ComfyUI node definitions only when the mix list actually changes
+      // (names, additions, or deletions) — not on a mere selection change.
+      const prevMixKey = prev.mixes.map((m) => `${m.id}:${m.name}`).join('\0')
+      const nextMixKey = resolved.mixes.map((m) => `${m.id}:${m.name}`).join('\0')
+      if (prevMixKey !== nextMixKey) {
+        if (refreshTimer.current) clearTimeout(refreshTimer.current)
+        refreshTimer.current = setTimeout(() => {
+          try {
+            ;(window as any).app?.refreshComboInNodes?.()
+          } catch (e) {
+            console.warn('[ImmacStyleMixer] refreshComboInNodes failed', e)
+          }
+        }, 1500)
+      }
 
       return resolved
     })
