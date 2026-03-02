@@ -14,6 +14,11 @@ interface Props {
 }
 
 export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, onDelete, onDuplicate }: Props) {
+  function handleCardClick(e: React.MouseEvent) {
+    const target = e.target as HTMLElement
+    if (!target.closest('button, input, select, textarea, a')) onActivate()
+  }
+
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(mix.name)
   const [uploading, setUploading] = useState(false)
@@ -68,18 +73,12 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
         width: '100%',
         position: 'relative',
         overflow: 'hidden',
+        cursor: 'pointer',
       }}
+      onClick={handleCardClick}
     >
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <input
-          type="radio"
-          title="Set as current mix"
-          checked={isActive}
-          onChange={onActivate}
-          style={{ cursor: 'pointer', flexShrink: 0 }}
-        />
-
         {editingName ? (
           <input
             autoFocus
