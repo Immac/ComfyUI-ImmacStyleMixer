@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Mix, MixEntry, Style } from '../types'
 import { mixImageUrl, uploadMixImage } from '../hooks/useStyleMixerData'
+import ImageLightbox from './ImageLightbox'
 
 interface Props {
   mix: Mix
@@ -15,6 +16,7 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(mix.name)
   const [uploading, setUploading] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function handleImageFile(file: File) {
@@ -108,44 +110,63 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
       </div>
 
       {/* Cover image */}
-      <div
-        title="Click or drop an image to set mix cover"
-        onClick={() => fileRef.current?.click()}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault()
-          const file = e.dataTransfer.files[0]
-          if (file) handleImageFile(file)
-        }}
-        style={{
-          width: '100%',
-          height: 90,
-          borderRadius: 6,
-          border: '1px dashed var(--p-surface-border, #555)',
-          overflow: 'hidden',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--p-surface-ground, #141414)',
-          fontSize: 11,
-          color: '#888',
-          flexShrink: 0,
-          position: 'relative',
-        }}
-      >
-        {uploading ? (
-          'Uploading…'
-        ) : mix.image_filename ? (
-          <img
-            src={mixImageUrl(mix.image_filename)}
-            alt={mix.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        ) : (
-          '+ cover image'
+      <div style={{ position: 'relative', width: '100%' }}>
+        <div
+          title="Click or drop an image to set mix cover"
+          onClick={() => fileRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault()
+            const file = e.dataTransfer.files[0]
+            if (file) handleImageFile(file)
+          }}
+          style={{
+            width: '100%',
+            height: 90,
+            borderRadius: 6,
+            border: '1px dashed var(--p-surface-border, #555)',
+            overflow: 'hidden',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--p-surface-ground, #141414)',
+            fontSize: 11,
+            color: '#888',
+            flexShrink: 0,
+            position: 'relative',
+          }}
+        >
+          {uploading ? (
+            'Uploading…'
+          ) : mix.image_filename ? (
+            <img
+              src={mixImageUrl(mix.image_filename)}
+              alt={mix.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            '+ cover image'
+          )}
+        </div>
+        {!uploading && mix.image_filename && (
+          <button
+            title="View full size"
+            onClick={(e) => { e.stopPropagation(); setLightboxOpen(true) }}
+            style={magnifyBtn}
+          >
+            🔍
+          </button>
         )}
       </div>
+
+      {lightboxOpen && mix.image_filename && (
+        <ImageLightbox
+          src={mixImageUrl(mix.image_filename)}
+          alt={mix.name}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
       <input
         ref={fileRef}
         type="file"
@@ -240,6 +261,21 @@ const iconBtn: React.CSSProperties = {
   color: 'inherit',
   lineHeight: 1,
   flexShrink: 0,
+}
+
+const magnifyBtn: React.CSSProperties = {
+  position: 'absolute',
+  bottom: 4,
+  right: 4,
+  background: 'rgba(0,0,0,0.55)',
+  border: 'none',
+  borderRadius: 4,
+  cursor: 'pointer',
+  fontSize: 14,
+  padding: '2px 4px',
+  lineHeight: 1,
+  color: '#fff',
+  backdropFilter: 'blur(2px)',
 }
 
 const inputStyle: React.CSSProperties = {

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Style } from '../types'
 import { styleImageUrl, uploadStyleImage } from '../hooks/useStyleMixerData'
+import ImageLightbox from './ImageLightbox'
 
 interface Props {
   style: Style
@@ -14,6 +15,7 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
   const [nameInput, setNameInput] = useState(style.name)
   const [valueInput, setValueInput] = useState(style.value)
   const [uploading, setUploading] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   function commitName() {
@@ -69,43 +71,62 @@ export default function StyleCard({ style, onUpdate, onDelete }: Props) {
       </div>
 
       {/* Image area */}
-      <div
-        title="Click or drop to upload image"
-        onClick={() => fileRef.current?.click()}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault()
-          const file = e.dataTransfer.files[0]
-          if (file) handleImageDrop(file)
-        }}
-        style={{
-          width: '100%',
-          aspectRatio: '1',
-          borderRadius: 6,
-          border: '1px dashed var(--p-surface-border, #555)',
-          overflow: 'hidden',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--p-surface-ground, #141414)',
-          fontSize: 11,
-          color: '#888',
-          flexShrink: 0,
-        }}
-      >
-        {uploading ? (
-          'Uploading…'
-        ) : style.image_filename ? (
-          <img
-            src={styleImageUrl(style.image_filename)}
-            alt={style.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        ) : (
-          '+ image'
+      <div style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
+        <div
+          title="Click or drop to upload image"
+          onClick={() => fileRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault()
+            const file = e.dataTransfer.files[0]
+            if (file) handleImageDrop(file)
+          }}
+          style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: 6,
+            border: '1px dashed var(--p-surface-border, #555)',
+            overflow: 'hidden',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--p-surface-ground, #141414)',
+            fontSize: 11,
+            color: '#888',
+            flexShrink: 0,
+          }}
+        >
+          {uploading ? (
+            'Uploading…'
+          ) : style.image_filename ? (
+            <img
+              src={styleImageUrl(style.image_filename)}
+              alt={style.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            '+ image'
+          )}
+        </div>
+        {!uploading && style.image_filename && (
+          <button
+            title="View full size"
+            onClick={(e) => { e.stopPropagation(); setLightboxOpen(true) }}
+            style={magnifyBtn}
+          >
+            🔍
+          </button>
         )}
       </div>
+
+      {lightboxOpen && style.image_filename && (
+        <ImageLightbox
+          src={styleImageUrl(style.image_filename)}
+          alt={style.name}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
       <input
         ref={fileRef}
         type="file"
@@ -170,6 +191,21 @@ const iconBtn: React.CSSProperties = {
   padding: '0 2px',
   color: 'inherit',
   lineHeight: 1,
+}
+
+const magnifyBtn: React.CSSProperties = {
+  position: 'absolute',
+  bottom: 4,
+  right: 4,
+  background: 'rgba(0,0,0,0.55)',
+  border: 'none',
+  borderRadius: 4,
+  cursor: 'pointer',
+  fontSize: 14,
+  padding: '2px 4px',
+  lineHeight: 1,
+  color: '#fff',
+  backdropFilter: 'blur(2px)',
 }
 
 const inputStyle: React.CSSProperties = {
