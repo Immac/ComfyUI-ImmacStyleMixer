@@ -7,9 +7,10 @@ interface Props {
   onUpdate: (updated: Style) => void
   onDelete: (id: string) => void
   onAdd: (name: string) => void
+  onDuplicate: (style: Style) => void
 }
 
-export default function StyleGallery({ styles, onUpdate, onDelete, onAdd }: Props) {
+export default function StyleGallery({ styles, onUpdate, onDelete, onAdd, onDuplicate }: Props) {
   const [newName, setNewName] = useState('')
   const [adding, setAdding] = useState(false)
 
@@ -34,6 +35,7 @@ export default function StyleGallery({ styles, onUpdate, onDelete, onAdd }: Prop
             style={s}
             onUpdate={onUpdate}
             onDelete={() => onDelete(s.id)}
+            onDuplicate={() => onDuplicate(s)}
           />
         ))}
 

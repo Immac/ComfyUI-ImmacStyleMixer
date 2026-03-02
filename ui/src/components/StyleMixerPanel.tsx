@@ -90,6 +90,16 @@ export default function StyleMixerPanel() {
     }))
   }, [update])
 
+  const duplicateStyle = useCallback((source: Style) => {
+    const copy: Style = { ...source, id: uid(), name: `${source.name} (copy)` }
+    update((prev: StyleMixerData) => {
+      const idx = prev.styles.findIndex((s) => s.id === source.id)
+      const next = [...prev.styles]
+      next.splice(idx + 1, 0, copy)
+      return { ...prev, styles: next }
+    })
+  }, [update])
+
   // ── Mix operations ───────────────────────────────────────────────────────────
 
   const addMix = useCallback(() => {
@@ -208,6 +218,7 @@ export default function StyleMixerPanel() {
           onUpdate={updateStyle}
           onDelete={deleteStyle}
           onAdd={addStyle}
+          onDuplicate={duplicateStyle}
         />
       </CollapsibleSection>
     </div>
