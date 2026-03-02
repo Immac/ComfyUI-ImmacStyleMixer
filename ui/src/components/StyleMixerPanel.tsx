@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useStyleMixerData } from '../hooks/useStyleMixerData'
 import { Mix, MixEntry, Style, StyleMixerData } from '../types'
 import MixCard from './MixCard'
@@ -92,6 +92,11 @@ export default function StyleMixerPanel() {
   const restMixes = data.mixes.filter((m) => !m.favorite)
   const sortedMixes = [...favoritesMixes, ...restMixes]
 
+  const [mixFilter, setMixFilter] = useState('')
+  const filteredMixes = mixFilter.trim()
+    ? sortedMixes.filter((m) => m.name.toLowerCase().includes(mixFilter.toLowerCase()))
+    : sortedMixes
+
   return (
     <div style={panelStyle}>
       {/* ── Current Mix ──────────────────────────────────────────────────── */}
@@ -138,8 +143,14 @@ export default function StyleMixerPanel() {
 
       {/* ── Mixes ────────────────────────────────────────────────────────── */}
       <Section title="Mixes">
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {sortedMixes.map((mix) => (
+        <input
+          placeholder="Filter mixes…"
+          value={mixFilter}
+          onChange={(e) => setMixFilter(e.target.value)}
+          style={filterInput}
+        />
+        <div style={{ display: 'flex', gap: 10, overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 6 }}>
+          {filteredMixes.map((mix) => (
             <MixCard
               key={mix.id}
               mix={mix}
@@ -163,6 +174,7 @@ export default function StyleMixerPanel() {
               cursor: 'pointer',
               fontSize: 22,
               alignSelf: 'flex-start',
+              flexShrink: 0,
             }}
           >
             +
@@ -181,6 +193,17 @@ export default function StyleMixerPanel() {
       </Section>
     </div>
   )
+}
+
+const filterInput: React.CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  background: 'var(--p-surface-ground, #141414)',
+  border: '1px solid var(--p-surface-border, #444)',
+  borderRadius: 4,
+  color: 'inherit',
+  padding: '4px 8px',
+  fontSize: 12,
 }
 
 const panelStyle: React.CSSProperties = {

@@ -12,6 +12,7 @@ interface Props {
 export default function StyleGallery({ styles, onUpdate, onDelete, onAdd }: Props) {
   const [newName, setNewName] = useState('')
   const [adding, setAdding] = useState(false)
+  const [filter, setFilter] = useState('')
 
   function handleAdd() {
     const name = newName.trim()
@@ -24,11 +25,20 @@ export default function StyleGallery({ styles, onUpdate, onDelete, onAdd }: Prop
   const favorites = styles.filter((s) => s.favorite)
   const rest = styles.filter((s) => !s.favorite)
   const sorted = [...favorites, ...rest]
+  const filtered = filter.trim()
+    ? sorted.filter((s) => s.name.toLowerCase().includes(filter.toLowerCase()))
+    : sorted
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <input
+        placeholder="Filter styles…"
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        style={filterInput}
+      />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-        {sorted.map((s) => (
+        {filtered.map((s) => (
           <StyleCard
             key={s.id}
             style={s}
@@ -88,6 +98,17 @@ export default function StyleGallery({ styles, onUpdate, onDelete, onAdd }: Prop
       </div>
     </div>
   )
+}
+
+const filterInput: React.CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  background: 'var(--p-surface-ground, #141414)',
+  border: '1px solid var(--p-surface-border, #444)',
+  borderRadius: 4,
+  color: 'inherit',
+  padding: '4px 8px',
+  fontSize: 12,
 }
 
 const inputStyle: React.CSSProperties = {
