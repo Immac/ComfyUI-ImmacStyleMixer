@@ -6,42 +6,10 @@ from aiohttp import web
 import nodes
 
 from .src.immac_tools.api import register_routes
-from .src.immac_tools.nodes import (
-    ConcatenateSigmasNode,
-    SpliceSigmasAtNode,
-    ResampleSigmas,
-    SkipEveryNthImages,
-    MatchContrastNode,
-)
-from .src.immac_tools.forwarding_nodes import (
-    ForwardAnyNode,
-    ForwardConditioningNode,
-    ForwardModelNode,
-)
 
-# Traditional mapping — required by ComfyUI core and the Manager
-NODE_CLASS_MAPPINGS = {
-    "ConcatenateSigmasImmacTools": ConcatenateSigmasNode,
-    "SpliceSigmasAtImmacTools": SpliceSigmasAtNode,
-    "ResampleSigmasImmacTools": ResampleSigmas,
-    "SkipEveryNthImagesImmacTools": SkipEveryNthImages,
-    "MatchContrastImmacTools": MatchContrastNode,
-    "ForwardAnyImmacTools": ForwardAnyNode,
-    "ForwardConditioningImmacTools": ForwardConditioningNode,
-    "ForwardModelImmacTools": ForwardModelNode,
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "ConcatenateSigmasImmacTools": "Concatenate Sigmas Node",
-    "SpliceSigmasAtImmacTools": "Splice Sigmas At Node",
-    "ResampleSigmasImmacTools": "Resample Sigmas",
-    "SkipEveryNthImagesImmacTools": "Skip Every Nth Image",
-    "MatchContrastImmacTools": "Match Contrast",
-    "ForwardAnyImmacTools": "Forward Any",
-    "ForwardConditioningImmacTools": "Forward Conditioning",
-    "ForwardModelImmacTools": "Forward Model",
-}
-
+# No custom nodes — this extension is UI-only (Style Mixer sidebar panel).
+NODE_CLASS_MAPPINGS = {}
+NODE_DISPLAY_NAME_MAPPINGS = {}
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
 
 workspace_path = os.path.dirname(__file__)
