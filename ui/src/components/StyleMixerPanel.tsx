@@ -62,7 +62,7 @@ export default function StyleMixerPanel() {
   // ── Mix operations ───────────────────────────────────────────────────────────
 
   const addMix = useCallback(() => {
-    const m: Mix = { id: uid(), name: `Mix ${data.mixes.length + 1}`, favorite: false, styles: [] }
+    const m: Mix = { id: uid(), name: `Mix ${data.mixes.length + 1}`, favorite: false, image_filename: null, styles: [] }
     update((prev) => ({ ...prev, mixes: [...prev.mixes, m] }))
   }, [data.mixes.length, update])
 

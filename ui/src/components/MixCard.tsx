@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Mix, MixEntry, Style } from '../types'
+import { mixImageUrl, uploadMixImage } from '../hooks/useStyleMixerData'
 
 interface Props {
   mix: Mix
@@ -13,6 +14,21 @@ interface Props {
 export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, onDelete }: Props) {
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(mix.name)
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  async function handleImageFile(file: File) {
+    if (!file.type.startsWith('image/')) return
+    setUploading(true)
+    try {
+      const filename = await uploadMixImage(file)
+      onUpdate({ ...mix, image_filename: filename })
+    } catch (e) {
+      console.error('[ImmacStyleMixer] Mix image upload failed', e)
+    } finally {
+      setUploading(false)
+    }
+  }
 
   function commitName() {
     setEditingName(false)
@@ -90,6 +106,57 @@ export default function MixCard({ mix, styles, isActive, onActivate, onUpdate, o
           ✕
         </button>
       </div>
+
+      {/* Cover image */}
+      <div
+        title="Click or drop an image to set mix cover"
+        onClick={() => fileRef.current?.click()}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault()
+          const file = e.dataTransfer.files[0]
+          if (file) handleImageFile(file)
+        }}
+        style={{
+          width: '100%',
+          height: 90,
+          borderRadius: 6,
+          border: '1px dashed var(--p-surface-border, #555)',
+          overflow: 'hidden',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--p-surface-ground, #141414)',
+          fontSize: 11,
+          color: '#888',
+          flexShrink: 0,
+          position: 'relative',
+        }}
+      >
+        {uploading ? (
+          'Uploading…'
+        ) : mix.image_filename ? (
+          <img
+            src={mixImageUrl(mix.image_filename)}
+            alt={mix.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
+          '+ cover image'
+        )}
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) handleImageFile(file)
+          e.target.value = ''
+        }}
+      />
 
       {/* Style entries */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 240, overflowY: 'auto' }}>

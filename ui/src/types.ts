@@ -16,6 +16,7 @@ export interface Mix {
   id: string
   name: string
   favorite: boolean
+  image_filename: string | null
   styles: MixEntry[]
 }
 

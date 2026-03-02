@@ -55,3 +55,20 @@ export async function uploadStyleImage(file: File): Promise<string> {
 export function styleImageUrl(filename: string): string {
   return `/view?filename=${encodeURIComponent(filename)}&subfolder=immac_style_mixer%2Fstyles&type=input`
 }
+
+/** Upload a mix cover image via ComfyUI's built-in endpoint and return the filename. */
+export async function uploadMixImage(file: File): Promise<string> {
+  const form = new FormData()
+  form.append('image', file)
+  form.append('subfolder', 'immac_style_mixer/mixes')
+  form.append('type', 'input')
+  const resp = await fetch('/upload/image', { method: 'POST', body: form })
+  if (!resp.ok) throw new Error(`Upload failed: HTTP ${resp.status}`)
+  const json = (await resp.json()) as { name: string }
+  return json.name
+}
+
+/** Build a URL to display a mix image via ComfyUI's /view endpoint. */
+export function mixImageUrl(filename: string): string {
+  return `/view?filename=${encodeURIComponent(filename)}&subfolder=immac_style_mixer%2Fmixes&type=input`
+}
