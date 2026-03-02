@@ -16,9 +16,8 @@ adding a React/TypeScript Style Mixer UI alongside the existing custom nodes.
 - [x] Remove unused `ExampleForwardingExtension` from `src/immac_tools/forwarding_nodes.py`
 
 ### ✅ Step 2 — Rewrite root `__init__.py` to match the template pattern
-- [x] Remove `WEB_DIRECTORY` re-export
-- [x] Set `NODE_CLASS_MAPPINGS = {}` (nodes registered via `comfy_entrypoint`)
-- [x] Wire `comfy_entrypoint` to `src/immac_tools/nodes.py`
+- [x] Restore `NODE_CLASS_MAPPINGS` + `NODE_DISPLAY_NAME_MAPPINGS` (required by ComfyUI core and Manager; `comfy_entrypoint` alone doesn't surface nodes universally yet)
+- [x] Wire `comfy_entrypoint` to `src/immac_tools/nodes.py` (forward-compat)
 - [x] Register aiohttp static routes to serve `dist/immac_style_mixer/` at `/immac_style_mixer/`
 - [x] Register `nodes.EXTENSION_WEB_DIRS[project_name]` using `comfy_config` (with fallback)
 
