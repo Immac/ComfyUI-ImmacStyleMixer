@@ -78,7 +78,7 @@ class StyleCreateNode:
                 "creation_mode": (_CREATION_MODES, {"default": "Create or Update"}),
             },
             "optional": {
-                "style_id": ("STRING", {"default": "", "multiline": False}),
+                "style_id": ("STRING", {"forceInput": True}),
                 "favorite": ("BOOLEAN", {"default": False}),
                 "example_image": ("IMAGE", {}),
             },
