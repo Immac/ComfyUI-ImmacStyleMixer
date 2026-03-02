@@ -76,45 +76,65 @@ async function init(): Promise<void> {
     name: 'ImmacStyleMixer',
 
     nodeCreated(node: any) {
-      if (node.constructor?.comfyClass !== 'StyleMixImmacStyleMixer') return
+      // node.type is the registered LiteGraph type — most reliable check
+      if (node.type !== 'StyleMixImmacStyleMixer') return
 
       const mixWidget = node.widgets?.find((w: any) => w.name === 'mix')
       if (!mixWidget) return
 
+      // --- Remove "Open in MaskEditor" from the context menu ---
+      // getExtraMenuOptions is set on the prototype by litegraphService.
+      // Overriding on the instance shadows it so we can filter the menu.
+      const protoGetExtraMenuOptions = Object.getPrototypeOf(node).getExtraMenuOptions
+      node.getExtraMenuOptions = function (canvas: any, options: any[]) {
+        const result = protoGetExtraMenuOptions?.call(this, canvas, options) ?? []
+        const maskIdx = options.findIndex((o: any) => o?.content?.includes('MaskEditor'))
+        if (maskIdx !== -1) options.splice(maskIdx, 1)
+        return result
+      }
+
+      // --- Live preview update ---
+      // app.nodeOutputs returns the reactive Pinia proxy (nodeOutputs.value).
+      // Mutating it directly triggers Vue reactivity → onDrawBackground →
+      // updatePreviews detects isNewOutput → showPreview() loads the image.
+      // This is the same data path the WS "executed" message uses.
       const loadPreview = (mixName: string) => {
         fetch('/immac-style-mixer/data')
           .then((r) => r.json())
           .then((data) => {
             const mix = data.mixes?.find((m: any) => m.name === mixName)
-            // Clear first, just like LoadImage does
+            const nodeId = String(node.id)
+
+            // Clear existing output first (mirrors LoadImage: node.imgs = undefined)
             node.imgs = undefined
-            node.graph?.setDirtyCanvas(true)
+            if (window.app!.nodeOutputs[nodeId]) {
+              delete window.app!.nodeOutputs[nodeId]
+              node.graph?.setDirtyCanvas(true)
+            }
 
             if (!mix?.image_filename) return
 
-            const params = new URLSearchParams({
-              filename: mix.image_filename,
-              subfolder: 'immac_style_mixer/mixes',
-              type: 'input',
-            })
-            const img = new Image()
-            img.onload = () => {
-              node.imgs = [img]
-              node.imageIndex = null
-              node.graph?.setDirtyCanvas(true)
+            // Set on the reactive proxy — triggers Vue store update
+            window.app!.nodeOutputs[nodeId] = {
+              images: [{
+                filename: mix.image_filename,
+                subfolder: 'immac_style_mixer/mixes',
+                type: 'input',
+              }],
             }
-            img.src = `/view?${params}`
+            node.graph?.setDirtyCanvas(true)
           })
           .catch((e) => console.error('[ImmacStyleMixer] preview fetch failed', e))
       }
 
-      // Mirror LoadImage: wrap callback then load on next frame
+      // Wrap widget callback so arrows + dropdown changes both fire loadPreview
       const origCallback = mixWidget.callback
       mixWidget.callback = (value: string, ...args: any[]) => {
         origCallback?.call(mixWidget, value, ...args)
         loadPreview(value)
       }
 
+      // Initial load (value isn't settled immediately, defer one frame)
       requestAnimationFrame(() => loadPreview(String(mixWidget.value ?? '')))
     },
   })
