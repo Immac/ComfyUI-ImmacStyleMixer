@@ -11,7 +11,14 @@ function uid(): string {
 function CollapsibleSection({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: open ? 8 : 0 }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      flex: open ? '1 1 0' : '0 0 auto',
+      minHeight: 0,
+      borderBottom: '1px solid var(--p-surface-border, #333)',
+    }}>
+      {/* Always-visible header */}
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
@@ -21,11 +28,11 @@ function CollapsibleSection({ title, children, defaultOpen = true }: { title: st
           background: 'none',
           border: 'none',
           cursor: 'pointer',
-          padding: '0 0 4px 0',
-          borderBottom: '1px solid var(--p-surface-border, #333)',
+          padding: '8px 0',
           width: '100%',
           textAlign: 'left',
           color: '#888',
+          flexShrink: 0,
         }}
       >
         <i
@@ -43,7 +50,12 @@ function CollapsibleSection({ title, children, defaultOpen = true }: { title: st
           {title}
         </span>
       </button>
-      {open && children}
+      {/* Scrollable content */}
+      {open && (
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingBottom: 8 }}>
+          {children}
+        </div>
+      )}
     </div>
   )
 }
@@ -203,12 +215,11 @@ export default function StyleMixerPanel() {
 }
 
 const panelStyle: React.CSSProperties = {
-  padding: '12px 12px',
+  padding: '0 12px',
   display: 'flex',
   flexDirection: 'column',
-  gap: 20,
   height: '100%',
-  overflowY: 'auto',
+  overflow: 'hidden',
   color: 'var(--p-text-color, #eee)',
   fontSize: 13,
   boxSizing: 'border-box',
