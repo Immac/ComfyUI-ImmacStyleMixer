@@ -7,8 +7,8 @@ export function useStyleMixerData() {
   const [data, setData] = useState<StyleMixerData>(EMPTY_DATA)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // Tracks which mix IDs have changes not yet flushed to the ComfyUI node cache.
-  const [dirtyMixIds, setDirtyMixIds] = useState<ReadonlySet<string>>(new Set())
+  // True when a mix or style has been added/deleted since the last cache refresh.
+  const [pendingRefresh, setPendingRefresh] = useState(false)
 
   const dataRef = useRef<StyleMixerData>(EMPTY_DATA)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -31,43 +31,15 @@ export function useStyleMixerData() {
     dataRef.current = resolved
     setData(resolved)
 
-    // Compute which mix IDs became dirty due to this change.
-    setDirtyMixIds((prevDirty) => {
-      const dirty = new Set(prevDirty)
-
-      // Mixes whose own content changed.
-      for (const mix of resolved.mixes) {
-        const prevMix = prev.mixes.find((m) => m.id === mix.id)
-        if (!prevMix || JSON.stringify(prevMix) !== JSON.stringify(mix)) {
-          dirty.add(mix.id)
-        }
-      }
-
-      // If any style's content changed, mark every mix that uses it as dirty.
-      const changedStyleIds = new Set(
-        resolved.styles
-          .filter((s) => {
-            const p = prev.styles.find((ps) => ps.id === s.id)
-            return !p || JSON.stringify(p) !== JSON.stringify(s)
-          })
-          .map((s) => s.id)
-      )
-      if (changedStyleIds.size > 0) {
-        for (const mix of resolved.mixes) {
-          if (mix.styles.some((e) => changedStyleIds.has(e.style_id))) {
-            dirty.add(mix.id)
-          }
-        }
-      }
-
-      // Remove IDs for mixes that no longer exist.
-      const mixIdSet = new Set(resolved.mixes.map((m) => m.id))
-      for (const id of dirty) {
-        if (!mixIdSet.has(id)) dirty.delete(id)
-      }
-
-      return dirty
-    })
+    // The node combo widget only needs refreshing when the mix or style list
+    // grows or shrinks (add / delete). Content edits autosave without affecting
+    // node combo options.
+    if (
+      resolved.mixes.length !== prev.mixes.length ||
+      resolved.styles.length !== prev.styles.length
+    ) {
+      setPendingRefresh(true)
+    }
 
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
@@ -80,17 +52,16 @@ export function useStyleMixerData() {
   }, [])
 
   // Call this when the user explicitly wants to refresh the ComfyUI node cache.
-  // Clears all dirty badges once the refresh fires.
   const refreshNodes = useCallback(() => {
     try {
       ;(window as any).app?.refreshComboInNodes?.()
     } catch (e) {
       console.warn('[ImmacStyleMixer] refreshComboInNodes failed', e)
     }
-    setDirtyMixIds(new Set())
+    setPendingRefresh(false)
   }, [])
 
-  return { data, loading, error, update, dirtyMixIds, refreshNodes }
+  return { data, loading, error, update, pendingRefresh, refreshNodes }
 }
 
 /** Upload a style image via ComfyUI's built-in endpoint and return the filename. */
