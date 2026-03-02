@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { useStyleMixerData } from '../hooks/useStyleMixerData'
+import { useStyleMixerData, styleImageUrl } from '../hooks/useStyleMixerData'
 import { Mix, MixEntry, Style, StyleMixerData } from '../types'
 import MixCard from './MixCard'
 import StyleGallery from './StyleGallery'
@@ -156,19 +156,40 @@ export default function StyleMixerPanel() {
                     style={{
                       border: `1px solid ${entry.enabled ? 'var(--p-primary-color, #6c6)' : 'var(--p-surface-border, #444)'}`,
                       borderRadius: 6,
-                      padding: '6px 10px',
+                      overflow: 'hidden',
                       background: 'var(--p-surface-section, #1e1e1e)',
                       opacity: entry.enabled ? 1 : 0.45,
                       fontSize: 12,
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
-                      gap: 4,
-                      minWidth: 80,
+                      width: 80,
+                      flexShrink: 0,
                     }}
                   >
-                    <span style={{ fontWeight: 600 }}>{style?.name ?? '?'}</span>
-                    <span style={{ color: '#aaa' }}>×{entry.weight.toFixed(2)}</span>
+                    {/* Square image preview */}
+                    <div style={{ position: 'relative', width: '100%', paddingBottom: '100%' }}>
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        background: 'var(--p-surface-ground, #141414)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {style?.image_filename ? (
+                          <img
+                            src={styleImageUrl(style.image_filename)}
+                            alt={style.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          />
+                        ) : (
+                          <i className="pi pi-image" style={{ fontSize: 20, color: '#555' }} />
+                        )}
+                      </div>
+                    </div>
+                    {/* Name + weight */}
+                    <div style={{ padding: '4px 6px', textAlign: 'center', width: '100%', boxSizing: 'border-box' }}>
+                      <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{style?.name ?? '?'}</div>
+                      <div style={{ color: '#aaa', fontSize: 11 }}>×{entry.weight.toFixed(2)}</div>
+                    </div>
                   </div>
                 )
               })}
