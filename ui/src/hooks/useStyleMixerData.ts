@@ -31,13 +31,26 @@ export function useStyleMixerData() {
     dataRef.current = resolved
     setData(resolved)
 
-    // The node combo widget only needs refreshing when the mix or style list
-    // grows or shrinks (add / delete). Content edits autosave without affecting
-    // node combo options.
-    if (
-      resolved.mixes.length !== prev.mixes.length ||
-      resolved.styles.length !== prev.styles.length
-    ) {
+    const mixCountDelta = resolved.mixes.length - prev.mixes.length
+    const styleCountDelta = resolved.styles.length - prev.styles.length
+
+    if (mixCountDelta < 0 || styleCountDelta < 0) {
+      // Something was deleted — no card to show a badge on. Refresh immediately
+      // and notify the user via the ComfyUI toast system.
+      try {
+        ;(window as any).app?.refreshComboInNodes?.()
+        ;(window as any).app?.toast?.add({
+          severity: 'warn',
+          summary: 'Style Mixer',
+          detail: 'A mix or style was deleted — node combo lists have been refreshed.',
+          life: 4000,
+        })
+      } catch (e) {
+        console.warn('[ImmacStyleMixer] refreshComboInNodes/toast failed', e)
+      }
+      setPendingRefresh(false)
+    } else if (mixCountDelta > 0 || styleCountDelta > 0) {
+      // Something was added — show the badge so the user can reload at will.
       setPendingRefresh(true)
     }
 
