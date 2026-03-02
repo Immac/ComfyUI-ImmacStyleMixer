@@ -61,8 +61,22 @@ class StyleMixNode:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("prompt",)
     FUNCTION = "execute"
+    OUTPUT_NODE = True
     CATEGORY = "Immac/Style Mixer"
     DESCRIPTION = "Outputs the prompt text assembled from the selected style mix."
 
-    def execute(self, mix: str) -> tuple[str]:
-        return (_build_prompt(mix),)
+    def execute(self, mix: str) -> dict:
+        prompt = _build_prompt(mix)
+
+        data = _load_data()
+        mix_data = next((m for m in data.get("mixes", []) if m["name"] == mix), None)
+
+        ui_images: list[dict] = []
+        if mix_data and mix_data.get("image_filename"):
+            ui_images = [{
+                "filename": mix_data["image_filename"],
+                "subfolder": "immac_style_mixer/mixes",
+                "type": "input",
+            }]
+
+        return {"ui": {"images": ui_images}, "result": (prompt,)}
