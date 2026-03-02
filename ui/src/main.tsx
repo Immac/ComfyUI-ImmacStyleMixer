@@ -84,11 +84,38 @@ async function init(): Promise<void> {
       // Create a DOM-based image preview widget so we bypass the deprecated
       // node.imgs / setSizeForImage path that no longer works in the new frontend.
       const imgEl = document.createElement('img')
-      imgEl.style.cssText = 'width:100%;display:none;object-fit:contain;border-radius:4px'
+      imgEl.style.cssText = 'width:100%;height:100%;display:none;object-fit:contain;border-radius:4px'
       const container = document.createElement('div')
-      container.style.cssText = 'padding:4px'
+      container.style.cssText = 'padding:4px;box-sizing:border-box'
       container.appendChild(imgEl)
+
+      // computeLayoutSize reads these CSS vars to determine widget height.
+      // Start hidden (0); set a real minimum once the image loads.
+      container.style.setProperty('--comfy-widget-min-height', '0')
+      container.style.setProperty('--comfy-widget-height', '0')
+
       node.addDOMWidget('immac_mix_preview', 'div', container, { serialize: false })
+
+      // Update sizing hints so the node layout engine behaves like a real image node.
+      function applyImageSize(natW: number, natH: number) {
+        const nodeWidth: number = node.size?.[0] ?? 300
+        const ratio = natH / natW
+        const displayH = Math.round((nodeWidth - 8) * ratio)
+        const clamped = Math.max(80, Math.min(displayH, 600))
+        container.style.setProperty('--comfy-widget-min-height', String(clamped))
+        container.style.setProperty('--comfy-widget-height', String(clamped))
+        // Ask the node to recompute its minimum size
+        const s = node.computeSize?.()
+        if (s) node.setSize([Math.max(node.size[0], s[0]), Math.max(node.size[1], s[1])])
+        window.app?.graph?.setDirtyCanvas(true)
+      }
+
+      function clearImageSize() {
+        container.style.setProperty('--comfy-widget-min-height', '0')
+        container.style.setProperty('--comfy-widget-height', '0')
+        imgEl.style.display = 'none'
+        window.app?.graph?.setDirtyCanvas(true)
+      }
 
       async function updatePreview(mixName: string) {
         try {
@@ -114,15 +141,15 @@ async function init(): Promise<void> {
           }
 
           if (!url) {
-            imgEl.style.display = 'none'
+            clearImageSize()
             return
           }
 
           imgEl.onload = () => {
             imgEl.style.display = 'block'
-            window.app?.graph?.setDirtyCanvas(true)
+            applyImageSize(imgEl.naturalWidth, imgEl.naturalHeight)
           }
-          imgEl.onerror = () => { imgEl.style.display = 'none' }
+          imgEl.onerror = () => { clearImageSize() }
           imgEl.src = url
         } catch (e) {
           console.error('[ImmacStyleMixer] Preview update failed', e)
