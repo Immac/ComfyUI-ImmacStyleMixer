@@ -204,6 +204,7 @@ export default function StyleMixerPanel() {
                     key={entry.style_id}
                     onMouseEnter={() => setHoveredChipId(entry.style_id)}
                     onMouseLeave={() => setHoveredChipId(null)}
+                    onDoubleClick={() => updateCurrentMixEntry(entry.style_id, { enabled: !entry.enabled })}
                     style={{
                       border: `1px solid ${entry.enabled ? 'var(--p-primary-color, #6c6)' : 'var(--p-surface-border, #444)'}`,
                       borderRadius: 6,
