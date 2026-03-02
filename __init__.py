@@ -18,7 +18,7 @@ NODE_CLASS_MAPPINGS = {
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "StyleMixImmacStyleMixer": "Style Mix",
-    "StyleCreateImmacStyleMixer": "Style Create",
+    "StyleCreateImmacStyleMixer": "Create/Modify Style",
     "StylePickImmacStyleMixer": "Style Pick",
 }
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
