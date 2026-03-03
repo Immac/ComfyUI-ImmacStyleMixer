@@ -71,11 +71,9 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
       if (!lgCanvas) return
       const canvasEl: HTMLCanvasElement | null = lgCanvas.canvas
       if (!canvasEl) return
-      const rect = canvasEl.getBoundingClientRect()
-      if (
-        e.clientX < rect.left || e.clientX > rect.right ||
-        e.clientY < rect.top  || e.clientY > rect.bottom
-      ) return
+      // Only create the node if the pointer is directly over the canvas element,
+      // not over any panel UI rendered on top of it.
+      if (document.elementFromPoint(e.clientX, e.clientY) !== canvasEl) return
       const pos: [number, number] = lgCanvas.convertEventToCanvasOffset(e)
       const LG = (window as any).LiteGraph
       const node = LG?.createNode('StylePickImmacStyleMixer')
