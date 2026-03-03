@@ -50,8 +50,27 @@ export function useStyleMixerData() {
       }
       setPendingRefresh(false)
     } else if (mixCountDelta > 0 || styleCountDelta > 0) {
-      // Something was added — show the badge so the user can reload at will.
-      setPendingRefresh(true)
+      // Something added. If a list was previously empty (showing the placeholder),
+      // refresh combos immediately so nodes pick up the first real name.
+      const wasStylesEmpty = styleCountDelta > 0 && prev.styles.length === 0
+      const wasMixesEmpty  = mixCountDelta  > 0 && prev.mixes.length  === 0
+      if (wasStylesEmpty || wasMixesEmpty) {
+        try {
+          ;(window as any).app?.refreshComboInNodes?.()
+          ;(window as any).app?.toast?.add({
+            severity: 'info',
+            summary: 'Style Mixer',
+            detail: 'First item added — node combo lists refreshed.',
+            life: 4000,
+          })
+        } catch (e) {
+          console.warn('[ImmacStyleMixer] refreshComboInNodes/toast failed', e)
+        }
+        setPendingRefresh(false)
+      } else {
+        // Show the badge so the user can choose when to reload.
+        setPendingRefresh(true)
+      }
     }
 
     if (saveTimer.current) clearTimeout(saveTimer.current)
@@ -60,7 +79,18 @@ export function useStyleMixerData() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(resolved),
-      }).catch((e: unknown) => console.error('[ImmacStyleMixer] Save failed', e))
+      })
+        .then(() => {
+          // Keep combo option lists current after every save (covers renames etc.).
+          try { ;(window as any).app?.refreshComboInNodes?.() } catch (_) {}
+          // Refresh image preview widgets in all pinned Immac nodes.
+          try {
+            ;(window as any).app?.graph?.nodes?.forEach((node: any) => {
+              if (typeof node._immacUpdatePreview === 'function') node._immacUpdatePreview()
+            })
+          } catch (_) {}
+        })
+        .catch((e: unknown) => console.error('[ImmacStyleMixer] Save failed', e))
     }, 400)
   }, [])
 
@@ -68,6 +98,10 @@ export function useStyleMixerData() {
   const refreshNodes = useCallback(() => {
     try {
       ;(window as any).app?.refreshComboInNodes?.()
+      // Also refresh image preview widgets in all pinned Immac nodes.
+      ;(window as any).app?.graph?.nodes?.forEach((node: any) => {
+        if (typeof node._immacUpdatePreview === 'function') node._immacUpdatePreview()
+      })
     } catch (e) {
       console.warn('[ImmacStyleMixer] refreshComboInNodes failed', e)
     }
@@ -109,7 +143,10 @@ export async function uploadMixImage(file: File): Promise<string> {
   return json.name
 }
 
-/** Build a URL to display a mix image via ComfyUI's /view endpoint. */
-export function mixImageUrl(filename: string): string {
-  return `/view?filename=${encodeURIComponent(filename)}&subfolder=immac_style_mixer%2Fmixes&type=input`
+/** Build a URL to display a mix image via ComfyUI's /view endpoint.
+ * Pass `updatedAt` (image_updated_at from the Mix object) to bust the browser cache
+ * when the file has been overwritten in place. */
+export function mixImageUrl(filename: string, updatedAt?: number): string {
+  const bust = updatedAt ? `&t=${updatedAt}` : ''
+  return `/view?filename=${encodeURIComponent(filename)}&subfolder=immac_style_mixer%2Fmixes&type=input${bust}`
 }

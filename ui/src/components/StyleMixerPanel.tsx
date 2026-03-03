@@ -369,6 +369,8 @@ export default function StyleMixerPanel() {
           currentMixStyleIds={currentMix ? new Set(currentMix.styles.map((e) => e.style_id)) : undefined}
           onAddToMix={currentMix ? addStyleToCurrentMix : undefined}
           onRemoveFromMix={currentMix ? removeStyleFromCurrentMix : undefined}
+          isDirty={pendingRefresh}
+          onRefreshCache={refreshNodes}
         />
       </CollapsibleSection>
       {lightboxSrc && (

@@ -269,7 +269,8 @@ async function init(): Promise<void> {
             const mix = (data.mixes ?? []).find((m: any) => m.name === value)
             let url = ''
             if (mix?.image_filename) {
-              url = `/view?filename=${encodeURIComponent(mix.image_filename)}&subfolder=immac_style_mixer%2Fmixes&type=input`
+              const bust = mix.image_updated_at ? `&t=${mix.image_updated_at}` : ''
+              url = `/view?filename=${encodeURIComponent(mix.image_filename)}&subfolder=immac_style_mixer%2Fmixes&type=input${bust}`
             } else if (mix?.styles?.length) {
               const stylesById = Object.fromEntries((data.styles ?? []).map((s: any) => [s.id, s]))
               const first = (mix.styles as any[])
@@ -304,7 +305,31 @@ async function init(): Promise<void> {
     },
 
     loadedGraphNode(node: any) {
-      if (typeof node._immacUpdatePreview === 'function') {
+      if (typeof node._immacUpdatePreview !== 'function') return
+
+      const isPickNode = node.comfyClass === 'StylePickImmacStyleMixer'
+      const widgetName = isPickNode ? 'style' : 'mix'
+      const comboWidget = node.widgets?.find((w: any) => w.name === widgetName)
+      const currentVal = String(comboWidget?.value ?? '')
+
+      // If the node was saved while the list was empty (placeholder value),
+      // fetch fresh data and upgrade to the first real item so the preview shows.
+      if (currentVal === '(no styles saved)' || currentVal === '(no mixes saved)') {
+        fetch('/immac_style_mixer/api/data')
+          .then((r) => r.json())
+          .then((data) => {
+            const items: any[] = isPickNode ? (data.styles ?? []) : (data.mixes ?? [])
+            if (items.length > 0 && comboWidget) {
+              comboWidget.value = items[0].name
+              // Update the dropdown options list if accessible
+              if (Array.isArray(comboWidget.options?.values)) {
+                comboWidget.options.values = items.map((i: any) => i.name)
+              }
+            }
+            node._immacUpdatePreview()
+          })
+          .catch(() => node._immacUpdatePreview())
+      } else {
         node._immacUpdatePreview()
       }
     },

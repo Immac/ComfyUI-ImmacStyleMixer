@@ -18,6 +18,7 @@ export interface Mix {
   name: string
   favorite: boolean
   image_filename: string | null
+  image_updated_at?: number
   styles: MixEntry[]
 }
 

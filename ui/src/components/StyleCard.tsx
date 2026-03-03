@@ -10,9 +10,11 @@ interface Props {
   inCurrentMix?: boolean
   onAddToMix?: () => void
   onRemoveFromMix?: () => void
+  isDirty?: boolean
+  onRefreshCache?: () => void
 }
 
-export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onAddToMix, onRemoveFromMix }: Props) {
+export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onAddToMix, onRemoveFromMix, isDirty, onRefreshCache }: Props) {
   const [editingName, setEditingName] = useState(false)
   const [editingValue, setEditingValue] = useState(false)
   const [nameInput, setNameInput] = useState(style.name)
@@ -49,7 +51,7 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
     setUploading(true)
     try {
       const filename = await uploadStyleImage(file)
-      onUpdate({ ...style, image_filename: filename })
+      onUpdate({ ...style, image_filename: filename, image_updated_at: Date.now() })
     } catch (e) {
       console.error('[ImmacStyleMixer] Image upload failed', e)
     } finally {
@@ -114,6 +116,20 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
           >
             <i className={copied ? 'pi pi-check' : 'pi pi-clipboard'} />
           </button>
+          {isDirty && (
+            <button
+              title="Node combo lists may be stale — click to refresh"
+              onClick={onRefreshCache}
+              style={{
+                ...iconBtn,
+                color: '#f5a623',
+                fontSize: 14,
+                animation: 'immac-pulse 1.8s ease-in-out infinite',
+              }}
+            >
+              <i className="pi pi-exclamation-circle" />
+            </button>
+          )}
           <button title="Delete style" onClick={() => setPendingDelete(true)} style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)' }}>
             <i className="pi pi-trash" />
           </button>

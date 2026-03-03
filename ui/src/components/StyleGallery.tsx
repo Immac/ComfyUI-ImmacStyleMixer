@@ -10,9 +10,11 @@ interface Props {
   currentMixStyleIds?: Set<string>
   onAddToMix?: (id: string) => void
   onRemoveFromMix?: (id: string) => void
+  isDirty?: boolean
+  onRefreshCache?: () => void
 }
 
-export default function StyleGallery({ styles, onUpdate, onDelete, onAdd, currentMixStyleIds, onAddToMix, onRemoveFromMix }: Props) {
+export default function StyleGallery({ styles, onUpdate, onDelete, onAdd, currentMixStyleIds, onAddToMix, onRemoveFromMix, isDirty, onRefreshCache }: Props) {
   const [newName, setNewName] = useState('')
   const [adding, setAdding] = useState(false)
 
@@ -40,6 +42,8 @@ export default function StyleGallery({ styles, onUpdate, onDelete, onAdd, curren
             inCurrentMix={currentMixStyleIds?.has(s.id)}
             onAddToMix={onAddToMix ? () => onAddToMix(s.id) : undefined}
             onRemoveFromMix={onRemoveFromMix ? () => onRemoveFromMix(s.id) : undefined}
+            isDirty={isDirty}
+            onRefreshCache={onRefreshCache}
           />
         ))}
 

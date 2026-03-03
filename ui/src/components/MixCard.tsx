@@ -49,7 +49,7 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
     setUploading(true)
     try {
       const filename = await uploadMixImage(file)
-      onUpdate({ ...mix, image_filename: filename })
+      onUpdate({ ...mix, image_filename: filename, image_updated_at: Date.now() })
     } catch (e) {
       console.error('[ImmacStyleMixer] Mix image upload failed', e)
     } finally {
@@ -280,7 +280,7 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
             'Uploading…'
           ) : mix.image_filename ? (
             <img
-              src={mixImageUrl(mix.image_filename)}
+              src={mixImageUrl(mix.image_filename, mix.image_updated_at)}
               alt={mix.name}
               style={{
                 width: '100%', height: '100%', objectFit: 'cover',
@@ -305,7 +305,7 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
 
       {lightboxOpen && mix.image_filename && (
         <ImageLightbox
-          src={mixImageUrl(mix.image_filename)}
+          src={mixImageUrl(mix.image_filename, mix.image_updated_at)}
           alt={mix.name}
           onClose={() => setLightboxOpen(false)}
         />
