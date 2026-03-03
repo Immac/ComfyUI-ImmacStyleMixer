@@ -78,16 +78,14 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
 
   const unusedStyles = styles.filter((s) => !mix.styles.some((e) => e.style_id === s.id))
 
-  return (
-    <div
-      draggable
-      onDragStart={(e) => {
+  function dragHandleProps() {
+    return {
+      draggable: true,
+      onDragStart: (e: React.DragEvent) => {
         e.dataTransfer.effectAllowed = 'copy'
         e.dataTransfer.setData('application/x-immac-mix-name', mix.name)
-      }}
-      onDragEnd={(e) => {
-        // ComfyUI intercepts the canvas 'drop' event, so we create the node here
-        // using the final cursor position from dragend (same approach as ComfyUI's node library).
+      },
+      onDragEnd: (e: React.DragEvent) => {
         const lgCanvas = (window as any).app?.canvas
         if (!lgCanvas) return
         const canvasEl: HTMLCanvasElement | null = lgCanvas.canvas
@@ -109,7 +107,12 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
           mixWidget.callback?.(mix.name, null, null, null, node)
         }
         ;(window as any).app?.graph?.setDirtyCanvas(true, true)
-      }}
+      },
+    }
+  }
+
+  return (
+    <div
       style={{
         border: `2px solid ${styleDragOver ? '#88aaff' : isActive ? 'var(--p-primary-color, #6c6)' : 'var(--p-surface-border, #444)'}`,
         borderRadius: 8,
@@ -121,7 +124,6 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
         width: '100%',
         position: 'relative',
         overflow: 'hidden',
-        cursor: 'grab',
         transition: 'border-color 0.15s, background 0.15s',
       }}
       onClick={handleCardClick}
@@ -147,6 +149,14 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
     >
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {/* Drag handle — only this element initiates the card drag */}
+        <span
+          {...dragHandleProps()}
+          title="Drag to canvas"
+          style={{ cursor: 'grab', color: '#666', fontSize: 14, flexShrink: 0, lineHeight: 1, userSelect: 'none' }}
+        >
+          ⠿
+        </span>
         {editingName ? (
           <input
             autoFocus
