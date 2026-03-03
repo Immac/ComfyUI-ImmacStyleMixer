@@ -12,7 +12,6 @@ export function useStyleMixerData() {
 
   const dataRef = useRef<StyleMixerData>(EMPTY_DATA)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const saveSilentRef = useRef(false)
 
   useEffect(() => {
     fetch(API_URL)
@@ -75,7 +74,6 @@ export function useStyleMixerData() {
     }
 
     if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveSilentRef.current = options?.silent ?? false
     saveTimer.current = setTimeout(() => {
       fetch(API_URL, {
         method: 'POST',
@@ -83,10 +81,10 @@ export function useStyleMixerData() {
         body: JSON.stringify(resolved),
       })
         .then(() => {
-          // Keep combo option lists current after every save (but skip for silent updates).
-          if (!saveSilentRef.current) {
-            try { ;(window as any).app?.refreshComboInNodes?.() } catch (_) {}
-          }
+          // Node combo lists are refreshed only on explicit create/delete actions
+          // (handled above via count-delta logic). Do NOT call refreshComboInNodes
+          // here so that weight/enable/rename/selection changes never trigger a reload.
+
           // Refresh image preview widgets in all pinned Immac nodes.
           try {
             ;(window as any).app?.graph?.nodes?.forEach((node: any) => {
