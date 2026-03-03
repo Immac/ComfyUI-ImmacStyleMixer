@@ -170,13 +170,14 @@ export default function StyleMixerPanel() {
             <div style={{ fontWeight: 600, fontSize: 14 }}>{currentMix.name}</div>
             <div
               style={{
-                display: 'flex', gap: 8, flexWrap: 'wrap',
+                display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto',
                 borderRadius: 6,
                 border: `1px dashed ${dragOverCurrentMix ? '#88aaff' : 'transparent'}`,
                 background: dragOverCurrentMix ? 'rgba(100,130,255,0.07)' : 'transparent',
                 padding: dragOverCurrentMix ? 4 : 0,
                 transition: 'border-color 0.15s, background 0.15s, padding 0.1s',
                 minHeight: 40,
+                paddingBottom: 6,
               }}
               onDragOver={(e) => {
                 if (e.dataTransfer.types.includes('application/x-immac-style-id')) {
@@ -325,7 +326,7 @@ export default function StyleMixerPanel() {
 
       {/* ── Mixes ────────────────────────────────────────────────────────── */}
       <CollapsibleSection title="Mixes">
-        <div style={{ display: 'flex', flexDirection: 'row', overflowX: 'auto', gap: 10, paddingBottom: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: 4 }}>
           {sortedMixes.map((mix) => (
             <div key={mix.id} style={{ flex: '0 0 280px' }}>
               <MixCard
