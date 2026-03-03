@@ -130,6 +130,7 @@ export default function BarInput({
   return (
     <div
       draggable={false}
+      onMouseDown={(e) => e.stopPropagation()}
       onDragStart={(e) => e.stopPropagation()}
       style={{
         position: 'relative',
