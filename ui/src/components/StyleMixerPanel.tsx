@@ -204,7 +204,7 @@ export default function StyleMixerPanel() {
                     key={entry.style_id}
                     onMouseEnter={() => setHoveredChipId(entry.style_id)}
                     onMouseLeave={() => setHoveredChipId(null)}
-                    onDoubleClick={() => updateCurrentMixEntry(entry.style_id, { enabled: !entry.enabled })}
+                    onDoubleClick={() => updateCurrentMixEntry(entry.style_id, { enabled: !entry.enabled }, { silent: true })}
                     style={{
                       border: `1px solid ${entry.enabled ? 'var(--p-primary-color, #6c6)' : 'var(--p-surface-border, #444)'}`,
                       borderRadius: 6,
@@ -270,7 +270,7 @@ export default function StyleMixerPanel() {
                         {/* ON/OFF toggle */}
                         <button
                           title={entry.enabled ? 'Disable style' : 'Enable style'}
-                          onClick={(e) => { e.stopPropagation(); updateCurrentMixEntry(entry.style_id, { enabled: !entry.enabled }) }}
+                          onClick={(e) => { e.stopPropagation(); updateCurrentMixEntry(entry.style_id, { enabled: !entry.enabled }, { silent: true }) }}
                           style={{
                             background: entry.enabled ? 'var(--p-primary-color, #557755)' : 'transparent',
                             border: '1px solid var(--p-surface-border, #555)',
