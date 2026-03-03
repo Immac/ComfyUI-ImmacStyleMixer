@@ -1,10 +1,20 @@
-"""StyleWeightNode — applies a float weight to a style value string."""
+"""StyleWeightNode — pairs a style_id with a weight for use in StyleBlendNode."""
+
+import json
+import os
 
 from comfy_api.latest import io
 
+from ._style_utils import DATA_FILE_PATH, load_data
+
 
 class StyleWeightNode(io.ComfyNode):
-    """Wraps a style prompt value with a weight: (value:weight) or value if weight ≈ 1.0."""
+    """Pairs a style_id with a weight, producing a style_entry JSON for StyleBlendNode.
+
+    Connect style_id from a Style Pick node.
+    The style_entry output feeds into a Style Blend node.
+    weighted_value is a convenience string for direct preview/use.
+    """
 
     @classmethod
     def define_schema(cls) -> io.Schema:
@@ -13,12 +23,12 @@ class StyleWeightNode(io.ComfyNode):
             display_name="Weight Style",
             category="Immac/Style Mixer",
             description=(
-                "Applies a float weight to a style value. "
-                "Outputs the value unchanged when weight ≈ 1.0, "
-                "otherwise wraps it as (value:weight)."
+                "Pairs a style_id (from Style Pick) with a weight.\n"
+                "Outputs a style_entry JSON for the Style Blend node,\n"
+                "plus a weighted_value string for immediate preview/use."
             ),
             inputs=[
-                io.String.Input("style_value", force_input=True),
+                io.String.Input("style_id", force_input=True),
                 io.Float.Input(
                     "weight",
                     default=1.0,
@@ -29,15 +39,33 @@ class StyleWeightNode(io.ComfyNode):
                 ),
             ],
             outputs=[
-                io.String.Output(display_name="weighted_style"),
+                io.String.Output(display_name="style_entry"),
+                io.String.Output(display_name="weighted_value"),
             ],
         )
 
     @classmethod
-    def execute(cls, style_value: str, weight: float) -> io.NodeOutput:
-        value = (style_value or "").strip()
+    def fingerprint_inputs(cls, **_kwargs) -> float:
+        try:
+            return os.path.getmtime(DATA_FILE_PATH)
+        except OSError:
+            return float("nan")
+
+    @classmethod
+    def execute(cls, style_id: str, weight: float) -> io.NodeOutput:
+        style_id = (style_id or "").strip()
+        entry = json.dumps({"style_id": style_id, "weight": round(weight, 4)})
+
+        # Build weighted_value by looking up the style in the data file
+        data = load_data()
+        style = next((s for s in data.get("styles", []) if s["id"] == style_id), None)
+        value = (style.get("value", "") if style else "").strip()
+
         if not value:
-            return io.NodeOutput("")
-        if abs(weight - 1.0) < 1e-6:
-            return io.NodeOutput(value)
-        return io.NodeOutput(f"({value}:{weight:.2f})")
+            weighted_value = ""
+        elif abs(weight - 1.0) < 1e-6:
+            weighted_value = value
+        else:
+            weighted_value = f"({value}:{weight:.2f})"
+
+        return io.NodeOutput(entry, weighted_value)

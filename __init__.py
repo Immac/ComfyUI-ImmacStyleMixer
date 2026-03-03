@@ -14,6 +14,7 @@ from .src.immac_tools.style_modify_node import StyleModifyNode
 from .src.immac_tools.style_pick_node import StylePickNode
 from .src.immac_tools.style_weight_node import StyleWeightNode
 from .src.immac_tools.style_blend_node import StyleBlendNode
+from .src.immac_tools.save_mix_node import SaveMixNode
 
 
 class ImmacStyleMixerExtension(ComfyExtension):
@@ -25,6 +26,7 @@ class ImmacStyleMixerExtension(ComfyExtension):
             StylePickNode,
             StyleWeightNode,
             StyleBlendNode,
+            SaveMixNode,
         ]
 
 
