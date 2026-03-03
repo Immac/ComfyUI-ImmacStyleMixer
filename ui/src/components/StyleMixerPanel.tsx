@@ -122,12 +122,12 @@ export default function StyleMixerPanel() {
   const addStyleToCurrentMix = useCallback((styleId: string) => {
     if (!currentMix) return
     if (currentMix.styles.some((e) => e.style_id === styleId)) return
-    updateMix({ ...currentMix, styles: [...currentMix.styles, { style_id: styleId, weight: 1, enabled: true }] })
+    updateMix({ ...currentMix, styles: [...currentMix.styles, { style_id: styleId, weight: 1, enabled: true }] }, { silent: true })
   }, [currentMix, updateMix])
 
   const removeStyleFromCurrentMix = useCallback((styleId: string) => {
     if (!currentMix) return
-    updateMix({ ...currentMix, styles: currentMix.styles.filter((e) => e.style_id !== styleId) })
+    updateMix({ ...currentMix, styles: currentMix.styles.filter((e) => e.style_id !== styleId) }, { silent: true })
   }, [currentMix, updateMix])
 
   const deleteMix = useCallback((id: string) => {

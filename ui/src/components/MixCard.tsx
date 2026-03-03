@@ -10,7 +10,7 @@ interface Props {
   isActive: boolean
   isDirty: boolean
   onActivate: () => void
-  onUpdate: (updated: Mix) => void
+  onUpdate: (updated: Mix, options?: { silent?: boolean }) => void
   onDelete: () => void
   onDuplicate: () => void
   onRefreshCache: () => void
@@ -64,16 +64,16 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
 
   function updateEntry(index: number, patch: Partial<MixEntry>) {
     const next = mix.styles.map((e, i) => (i === index ? { ...e, ...patch } : e))
-    onUpdate({ ...mix, styles: next })
+    onUpdate({ ...mix, styles: next }, { silent: true })
   }
 
   function removeEntry(index: number) {
-    onUpdate({ ...mix, styles: mix.styles.filter((_, i) => i !== index) })
+    onUpdate({ ...mix, styles: mix.styles.filter((_, i) => i !== index) }, { silent: true })
   }
 
   function addStyle(styleId: string) {
     if (mix.styles.some((e) => e.style_id === styleId)) return
-    onUpdate({ ...mix, styles: [...mix.styles, { style_id: styleId, weight: 1.0, enabled: true }] })
+    onUpdate({ ...mix, styles: [...mix.styles, { style_id: styleId, weight: 1.0, enabled: true }] }, { silent: true })
   }
 
   const unusedStyles = styles.filter((s) => !mix.styles.some((e) => e.style_id === s.id))
