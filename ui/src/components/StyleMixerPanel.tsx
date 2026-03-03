@@ -112,11 +112,11 @@ export default function StyleMixerPanel() {
     update((prev) => ({ ...prev, mixes: [...prev.mixes, m] }))
   }, [data.mixes.length, update])
 
-  const updateMix = useCallback((updated: Mix) => {
+  const updateMix = useCallback((updated: Mix, options?: { silent?: boolean }) => {
     update((prev) => ({
       ...prev,
       mixes: prev.mixes.map((m) => (m.id === updated.id ? updated : m)),
-    }))
+    }), options)
   }, [update])
 
   const addStyleToCurrentMix = useCallback((styleId: string) => {
@@ -142,12 +142,12 @@ export default function StyleMixerPanel() {
     update((prev) => ({ ...prev, current_mix_id: id }))
   }, [update])
 
-  const updateCurrentMixEntry = useCallback((styleId: string, patch: Partial<MixEntry>) => {
+  const updateCurrentMixEntry = useCallback((styleId: string, patch: Partial<MixEntry>, options?: { silent?: boolean }) => {
     if (!currentMix) return
     updateMix({
       ...currentMix,
       styles: currentMix.styles.map((e) => e.style_id === styleId ? { ...e, ...patch } : e),
-    })
+    }, options)
   }, [currentMix, updateMix])
 
   if (loading) return <div style={panelStyle}>Loading…</div>
@@ -289,7 +289,7 @@ export default function StyleMixerPanel() {
                         <div style={{ flex: 1, minWidth: 0 }} onClick={(e) => e.stopPropagation()}>
                           <BarInput
                             value={entry.weight}
-                            onChange={(v) => updateCurrentMixEntry(entry.style_id, { weight: v })}
+                            onChange={(v) => updateCurrentMixEntry(entry.style_id, { weight: v }, { silent: true })}
                             min={0}
                             max={1}
                             step={0.05}

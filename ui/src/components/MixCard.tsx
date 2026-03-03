@@ -10,7 +10,7 @@ interface Props {
   isActive: boolean
   isDirty: boolean
   onActivate: () => void
-  onUpdate: (updated: Mix) => void
+  onUpdate: (updated: Mix, options?: { silent?: boolean }) => void
   onDelete: () => void
   onDuplicate: () => void
   onRefreshCache: () => void
@@ -62,9 +62,9 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
     if (nameInput.trim() !== mix.name) onUpdate({ ...mix, name: nameInput.trim() || mix.name })
   }
 
-  function updateEntry(index: number, patch: Partial<MixEntry>) {
+  function updateEntry(index: number, patch: Partial<MixEntry>, options?: { silent?: boolean }) {
     const next = mix.styles.map((e, i) => (i === index ? { ...e, ...patch } : e))
-    onUpdate({ ...mix, styles: next })
+    onUpdate({ ...mix, styles: next }, options)
   }
 
   function removeEntry(index: number) {
@@ -350,7 +350,7 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
               {/* Weight input */}
               <BarInput
                 value={entry.weight}
-                onChange={(v) => updateEntry(i, { weight: v })}
+                onChange={(v) => updateEntry(i, { weight: v }, { silent: true })}
                 min={0}
                 max={1}
                 step={0.05}

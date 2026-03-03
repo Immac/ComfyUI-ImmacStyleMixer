@@ -25,7 +25,8 @@ export function useStyleMixerData() {
   }, [])
 
   // Debounced save — writes 400ms after the last update.
-  const update = useCallback((next: StyleMixerData | ((prev: StyleMixerData) => StyleMixerData)) => {
+  // Pass { silent: true } to skip marking a pending refresh badge (e.g. weight-only changes).
+  const update = useCallback((next: StyleMixerData | ((prev: StyleMixerData) => StyleMixerData), options?: { silent?: boolean }) => {
     const prev = dataRef.current
     const resolved = typeof next === 'function' ? next(prev) : next
     dataRef.current = resolved
@@ -69,7 +70,7 @@ export function useStyleMixerData() {
         setPendingRefresh(false)
       } else {
         // Show the badge so the user can choose when to reload.
-        setPendingRefresh(true)
+        if (!options?.silent) setPendingRefresh(true)
       }
     }
 
