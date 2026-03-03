@@ -29,8 +29,10 @@ Images are stored and served via ComfyUI's built-in endpoints:
   Display: GET  /view?filename={name}&subfolder=immac_style_mixer/styles&type=input
 """
 
+import io
 import json
 import os
+import zipfile
 
 from aiohttp import web
 
@@ -86,5 +88,49 @@ def register_routes(app: web.Application, workspace_path: str) -> None:
 
         _save(workspace_path, data)
         return web.json_response({"status": "ok"})
+
+    @routes.get("/immac_style_mixer/api/backup.zip")
+    async def get_backup_zip(request: web.Request) -> web.Response:
+        """Stream a ZIP containing style_mixer_data.json + all style/mix images."""
+        try:
+            import folder_paths  # ComfyUI runtime module
+            input_dir = folder_paths.get_input_directory()
+        except Exception:
+            input_dir = os.path.join(workspace_path, "input")
+
+        data = _load(workspace_path)
+        buf = io.BytesIO()
+
+        with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            # 1 — JSON data file
+            zf.writestr(
+                "style_mixer_data.json",
+                json.dumps(data, indent=2, ensure_ascii=False),
+            )
+
+            # 2 — style images
+            styles_src = os.path.join(input_dir, "immac_style_mixer", "styles")
+            if os.path.isdir(styles_src):
+                for fname in os.listdir(styles_src):
+                    fpath = os.path.join(styles_src, fname)
+                    if os.path.isfile(fpath):
+                        zf.write(fpath, os.path.join("images", "styles", fname))
+
+            # 3 — mix cover images
+            mixes_src = os.path.join(input_dir, "immac_style_mixer", "mixes")
+            if os.path.isdir(mixes_src):
+                for fname in os.listdir(mixes_src):
+                    fpath = os.path.join(mixes_src, fname)
+                    if os.path.isfile(fpath):
+                        zf.write(fpath, os.path.join("images", "mixes", fname))
+
+        buf.seek(0)
+        date = __import__("datetime").date.today().isoformat()
+        filename = f"style_mixer_backup_{date}.zip"
+        return web.Response(
+            body=buf.read(),
+            content_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
     app.add_routes(routes)

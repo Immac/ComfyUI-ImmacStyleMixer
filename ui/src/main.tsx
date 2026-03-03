@@ -87,6 +87,13 @@ async function init(): Promise<void> {
     URL.revokeObjectURL(url)
   }
 
+  function downloadZip() {
+    const a = document.createElement('a')
+    a.href = '/immac_style_mixer/api/backup.zip'
+    a.download = `style_mixer_backup_${new Date().toISOString().slice(0, 10)}.zip`
+    a.click()
+  }
+
   function restoreBackup() {
     const input = document.createElement('input')
     input.type = 'file'
@@ -136,10 +143,16 @@ async function init(): Promise<void> {
           row.style.cssText = 'display:flex;gap:8px;align-items:center'
 
           const dlBtn = document.createElement('button')
-          dlBtn.textContent = '⬇ Download backup'
+          dlBtn.textContent = '⬇ Download backup (JSON)'
           dlBtn.title = 'Save all styles and mixes to a JSON file'
           dlBtn.style.cssText = 'cursor:pointer;padding:4px 10px;border-radius:4px'
           dlBtn.onclick = () => downloadBackup().catch(console.error)
+
+          const zipBtn = document.createElement('button')
+          zipBtn.textContent = '⬇ Download ZIP (with images)'
+          zipBtn.title = 'Save styles, mixes and all images to a ZIP file'
+          zipBtn.style.cssText = 'cursor:pointer;padding:4px 10px;border-radius:4px'
+          zipBtn.onclick = () => downloadZip()
 
           const ulBtn = document.createElement('button')
           ulBtn.textContent = '⬆ Restore backup'
@@ -148,6 +161,7 @@ async function init(): Promise<void> {
           ulBtn.onclick = () => restoreBackup()
 
           row.appendChild(dlBtn)
+          row.appendChild(zipBtn)
           row.appendChild(ulBtn)
           return row
         },
