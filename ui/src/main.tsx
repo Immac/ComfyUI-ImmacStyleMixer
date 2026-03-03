@@ -72,95 +72,88 @@ async function init(): Promise<void> {
     },
   })
 
+  const API_URL = '/immac_style_mixer/api/data'
+
+  async function downloadBackup() {
+    const resp = await fetch(API_URL)
+    if (!resp.ok) { alert(`Backup failed: HTTP ${resp.status}`); return }
+    const data = await resp.json()
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `style_mixer_backup_${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function restoreBackup() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json,application/json'
+    input.onchange = () => {
+      const file = input.files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = async (ev) => {
+        try {
+          const parsed = JSON.parse(ev.target?.result as string)
+          if (!Array.isArray(parsed.styles) || !Array.isArray(parsed.mixes)) {
+            throw new Error('Invalid backup: missing styles or mixes arrays.')
+          }
+          const resp = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(parsed),
+          })
+          if (!resp.ok) throw new Error(`Save failed: HTTP ${resp.status}`)
+          try {
+            ;(window as any).app?.toast?.add({
+              severity: 'success',
+              summary: 'Style Mixer',
+              detail: `Backup restored: ${parsed.styles.length} styles, ${parsed.mixes.length} mixes. Reload the Style Mixer panel to see changes.`,
+              life: 6000,
+            })
+          } catch (_) { /* not inside ComfyUI */ }
+        } catch (err) {
+          alert(`Failed to restore backup: ${(err as Error).message}`)
+        }
+      }
+      reader.readAsText(file)
+    }
+    input.click()
+  }
+
   window.app.registerExtension({
     name: 'ImmacStyleMixer',
 
-    async setup() {
-      const API_URL = '/immac_style_mixer/api/data'
+    settings: [
+      {
+        id: 'ImmacStyleMixer.BackupRestore' as any,
+        name: 'Style Mixer — Backup & Restore',
+        type: (_name: string, _setter: (v: unknown) => void, _value: unknown) => {
+          const row = document.createElement('div')
+          row.style.cssText = 'display:flex;gap:8px;align-items:center'
 
-      // Helper: download current data as a JSON backup file
-      async function downloadBackup() {
-        const resp = await fetch(API_URL)
-        if (!resp.ok) { alert(`Backup failed: HTTP ${resp.status}`); return }
-        const data = await resp.json()
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `style_mixer_backup_${new Date().toISOString().slice(0, 10)}.json`
-        a.click()
-        URL.revokeObjectURL(url)
-      }
+          const dlBtn = document.createElement('button')
+          dlBtn.textContent = '⬇ Download backup'
+          dlBtn.title = 'Save all styles and mixes to a JSON file'
+          dlBtn.style.cssText = 'cursor:pointer;padding:4px 10px;border-radius:4px'
+          dlBtn.onclick = () => downloadBackup().catch(console.error)
 
-      // Helper: restore data from a JSON backup file
-      function restoreBackup() {
-        const input = document.createElement('input')
-        input.type = 'file'
-        input.accept = '.json,application/json'
-        input.onchange = () => {
-          const file = input.files?.[0]
-          if (!file) return
-          const reader = new FileReader()
-          reader.onload = async (ev) => {
-            try {
-              const parsed = JSON.parse(ev.target?.result as string)
-              if (!Array.isArray(parsed.styles) || !Array.isArray(parsed.mixes)) {
-                throw new Error('Invalid backup: missing styles or mixes arrays.')
-              }
-              const resp = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(parsed),
-              })
-              if (!resp.ok) throw new Error(`Save failed: HTTP ${resp.status}`)
-              try {
-                ;(window as any).app?.toast?.add({
-                  severity: 'success',
-                  summary: 'Style Mixer',
-                  detail: `Backup restored: ${parsed.styles.length} styles, ${parsed.mixes.length} mixes. Reload the Style Mixer panel to see changes.`,
-                  life: 6000,
-                })
-              } catch (_) { /* not inside ComfyUI */ }
-            } catch (err) {
-              alert(`Failed to restore backup: ${(err as Error).message}`)
-            }
-          }
-          reader.readAsText(file)
-        }
-        input.click()
-      }
+          const ulBtn = document.createElement('button')
+          ulBtn.textContent = '⬆ Restore backup'
+          ulBtn.title = 'Load styles and mixes from a JSON backup file'
+          ulBtn.style.cssText = 'cursor:pointer;padding:4px 10px;border-radius:4px'
+          ulBtn.onclick = () => restoreBackup()
 
-      // Register as a custom DOM setting in the ComfyUI Settings dialog
-      try {
-        ;(window as any).app?.ui?.settings?.addSetting({
-          id: 'ImmacStyleMixer.BackupRestore',
-          name: 'Style Mixer — Backup & Restore',
-          type: (_name: string) => {
-            const row = document.createElement('div')
-            row.style.cssText = 'display:flex;gap:8px;align-items:center'
-
-            const dlBtn = document.createElement('button')
-            dlBtn.textContent = '⬇ Download backup'
-            dlBtn.title = 'Save all styles and mixes to a JSON file'
-            dlBtn.style.cssText = 'cursor:pointer;padding:4px 10px;border-radius:4px'
-            dlBtn.onclick = () => downloadBackup().catch(console.error)
-
-            const ulBtn = document.createElement('button')
-            ulBtn.textContent = '⬆ Restore backup'
-            ulBtn.title = 'Load styles and mixes from a JSON backup file'
-            ulBtn.style.cssText = 'cursor:pointer;padding:4px 10px;border-radius:4px'
-            ulBtn.onclick = () => restoreBackup()
-
-            row.appendChild(dlBtn)
-            row.appendChild(ulBtn)
-            return row
-          },
-          defaultValue: undefined,
-        })
-      } catch (e) {
-        console.warn('[ImmacStyleMixer] Could not register settings entry', e)
-      }
-    },
+          row.appendChild(dlBtn)
+          row.appendChild(ulBtn)
+          return row
+        },
+        defaultValue: null as any,
+      },
+    ],
 
     nodeCreated(node: any) {
       if (
