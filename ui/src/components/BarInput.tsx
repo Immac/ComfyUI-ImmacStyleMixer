@@ -13,10 +13,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 interface Props {
   value: number
   onChange: (v: number) => void
-  /** Lower bound used to compute the bar fill (default 0). */
-  min?: number
-  /** Upper bound used to compute the bar fill (default 1). */
-  max?: number
+  /**
+   * Lower bound for drag interaction and bar fill (default 0).
+   * Values outside this range are still accepted via direct text input.
+   */
+  dragMin?: number
+  /**
+   * Upper bound for drag interaction and bar fill (default 1).
+   * Values outside this range are still accepted via direct text input.
+   */
+  dragMax?: number
   step?: number
   /** Pixels of horizontal drag required to move one step (default 2). */
   pixelsPerStep?: number
@@ -27,8 +33,8 @@ interface Props {
 export default function BarInput({
   value,
   onChange,
-  min = -10,
-  max = 10,
+  dragMin = 0,
+  dragMax = 1,
   step = 0.01,
   pixelsPerStep = 2,
   width = 72,
@@ -66,9 +72,10 @@ export default function BarInput({
       dragging.current = true
       hasDragged.current = false
       dragStartX.current = e.clientX
-      dragStartValue.current = Math.max(min, Math.min(max, value))
+      // Clamp start value to drag range so drag always begins inside 0–1
+      dragStartValue.current = Math.max(dragMin, Math.min(dragMax, value))
     },
-    [editing, value, min, max],
+    [editing, value, dragMin, dragMax],
   )
 
   const onPointerMove = useCallback(
@@ -78,12 +85,12 @@ export default function BarInput({
       if (Math.abs(dx) > 2) hasDragged.current = true
       const steps = dx / pixelsPerStep
       const raw = dragStartValue.current + steps * step
-      // Round to avoid floating-point drift, then clamp to [min, max] for drag
+      // Round to avoid floating-point drift, then clamp to drag range
       const rounded = Math.round(raw / step) * step
-      const clamped = parseFloat(Math.max(min, Math.min(max, rounded)).toFixed(decimals))
+      const clamped = parseFloat(Math.max(dragMin, Math.min(dragMax, rounded)).toFixed(decimals))
       onChange(clamped)
     },
-    [step, pixelsPerStep, decimals, min, max, onChange],
+    [step, pixelsPerStep, decimals, dragMin, dragMax, onChange],
   )
 
   const onPointerUp = useCallback(() => {
@@ -95,8 +102,8 @@ export default function BarInput({
     dragging.current = false
   }, [value, decimals])
 
-  // ── Visual fill ──────────────────────────────────────────────────────────
-  const fillPct = Math.max(0, Math.min(1, (value - min) / (max - min))) * 100
+  // ── Visual fill – anchored to drag range (0 = empty, dragMax = full) ────
+  const fillPct = Math.max(0, Math.min(1, (value - dragMin) / (dragMax - dragMin))) * 100
 
   if (editing) {
     return (
