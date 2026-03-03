@@ -64,6 +64,7 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData('application/x-immac-style-id', style.id)
+        e.dataTransfer.setData('application/x-immac-style-name', style.name)
         e.dataTransfer.effectAllowed = 'copy'
       }}
       style={{

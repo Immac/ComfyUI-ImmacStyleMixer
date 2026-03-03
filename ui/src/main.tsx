@@ -165,6 +165,52 @@ async function init(): Promise<void> {
   window.app.registerExtension({
     name: 'ImmacStyleMixer',
 
+    setup() {
+      // Drop a style card onto the canvas → create a StylePickImmacStyleMixer node
+      const canvasEl = document.querySelector<HTMLCanvasElement>('#graph-canvas')
+      if (!canvasEl) return
+
+      canvasEl.addEventListener('dragover', (e: DragEvent) => {
+        if (e.dataTransfer?.types.includes('application/x-immac-style-id')) {
+          e.preventDefault()
+          if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+        }
+      })
+
+      canvasEl.addEventListener('drop', (e: DragEvent) => {
+        const styleId   = e.dataTransfer?.getData('application/x-immac-style-id')
+        const styleName = e.dataTransfer?.getData('application/x-immac-style-name')
+        if (!styleId || !styleName) return
+        e.preventDefault()
+        e.stopPropagation()
+
+        const app = window.app
+        if (!app) return
+
+        // Convert drop screen position → graph coordinates
+        const rect    = canvasEl.getBoundingClientRect()
+        const offsetX = e.clientX - rect.left
+        const offsetY = e.clientY - rect.top
+        const graphPos: [number, number] = (app as any).canvas.convertOffsetToCanvas([offsetX, offsetY])
+
+        // Create the node
+        const LiteGraph = (window as any).LiteGraph
+        if (!LiteGraph) return
+        const node = LiteGraph.createNode('StylePickImmacStyleMixer')
+        if (!node) return
+        ;(app as any).graph.add(node)
+        node.pos = [graphPos[0] - node.size[0] / 2, graphPos[1] - node.size[1] / 2]
+
+        // Pre-select the dropped style
+        const widget = node.widgets?.find((w: any) => w.name === 'style')
+        if (widget) {
+          widget.value = styleName
+          widget.callback?.(styleName)
+        }
+        ;(app as any).graph.setDirtyCanvas(true, true)
+      })
+    },
+
     settings: [
       {
         id: 'ImmacStyleMixer.BackupRestore' as any,
