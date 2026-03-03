@@ -59,39 +59,40 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
     }
   }
 
+  const dragHandleProps = {
+    draggable: true,
+    onDragStart: (e: React.DragEvent) => {
+      e.dataTransfer.setData('application/x-immac-style-id', style.id)
+      e.dataTransfer.setData('application/x-immac-style-name', style.name)
+      e.dataTransfer.effectAllowed = 'copy'
+    },
+    onDragEnd: (e: React.DragEvent) => {
+      const lgCanvas = (window as any).app?.canvas
+      if (!lgCanvas) return
+      const canvasEl: HTMLCanvasElement | null = lgCanvas.canvas
+      if (!canvasEl) return
+      const rect = canvasEl.getBoundingClientRect()
+      if (
+        e.clientX < rect.left || e.clientX > rect.right ||
+        e.clientY < rect.top  || e.clientY > rect.bottom
+      ) return
+      const pos: [number, number] = lgCanvas.convertEventToCanvasOffset(e)
+      const LG = (window as any).LiteGraph
+      const node = LG?.createNode('StylePickImmacStyleMixer')
+      if (!node) return
+      node.pos = pos
+      ;(window as any).app?.graph?.add(node)
+      const widget = node.widgets?.find((w: any) => w.name === 'style')
+      if (widget) {
+        widget.value = style.name
+        widget.callback?.(style.name, null, null, null, node)
+      }
+      ;(window as any).app?.graph?.setDirtyCanvas(true, true)
+    },
+  }
+
   return (
     <div
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData('application/x-immac-style-id', style.id)
-        e.dataTransfer.setData('application/x-immac-style-name', style.name)
-        e.dataTransfer.effectAllowed = 'copy'
-      }}
-      onDragEnd={(e) => {
-        // ComfyUI intercepts canvas 'drop', so create the node on dragend instead
-        // (same pattern as MixCard canvas drop).
-        const lgCanvas = (window as any).app?.canvas
-        if (!lgCanvas) return
-        const canvasEl: HTMLCanvasElement | null = lgCanvas.canvas
-        if (!canvasEl) return
-        const rect = canvasEl.getBoundingClientRect()
-        if (
-          e.clientX < rect.left || e.clientX > rect.right ||
-          e.clientY < rect.top  || e.clientY > rect.bottom
-        ) return
-        const pos: [number, number] = lgCanvas.convertEventToCanvasOffset(e)
-        const LG = (window as any).LiteGraph
-        const node = LG?.createNode('StylePickImmacStyleMixer')
-        if (!node) return
-        node.pos = pos
-        ;(window as any).app?.graph?.add(node)
-        const widget = node.widgets?.find((w: any) => w.name === 'style')
-        if (widget) {
-          widget.value = style.name
-          widget.callback?.(style.name, null, null, null, node)
-        }
-        ;(window as any).app?.graph?.setDirtyCanvas(true, true)
-      }}
       style={{
         border: '1px solid var(--p-surface-border, #444)',
         borderRadius: 8,
@@ -103,11 +104,18 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
         gap: 6,
         position: 'relative',
         overflow: 'hidden',
-        cursor: 'grab',
       }}
     >
       {/* Bookmark + Copy + Delete row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Drag handle — only this initiates the card drag */}
+        <span
+          {...dragHandleProps}
+          title="Drag to canvas"
+          style={{ cursor: 'grab', color: '#666', fontSize: 14, lineHeight: 1, userSelect: 'none', flexShrink: 0 }}
+        >
+          ⠿
+        </span>
         <button
           title={style.favorite ? 'Remove bookmark' : 'Bookmark'}
           onClick={() => onUpdate({ ...style, favorite: !style.favorite })}
