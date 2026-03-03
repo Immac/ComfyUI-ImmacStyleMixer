@@ -133,4 +133,60 @@ def register_routes(app: web.Application, workspace_path: str) -> None:
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
+    @routes.post("/immac_style_mixer/api/restore.zip")
+    async def post_restore_zip(request: web.Request) -> web.Response:
+        """Restore from a ZIP backup: extract data JSON and images."""
+        try:
+            import folder_paths
+            input_dir = folder_paths.get_input_directory()
+        except Exception:
+            input_dir = os.path.join(workspace_path, "input")
+
+        raw = await request.read()
+        buf = io.BytesIO(raw)
+        try:
+            zf = zipfile.ZipFile(buf, "r")
+        except zipfile.BadZipFile:
+            return web.json_response({"error": "Not a valid ZIP file"}, status=400)
+
+        with zf:
+            names = zf.namelist()
+            if "style_mixer_data.json" not in names:
+                return web.json_response(
+                    {"error": "ZIP does not contain style_mixer_data.json"}, status=400
+                )
+
+            # Restore data
+            data = json.loads(zf.read("style_mixer_data.json").decode("utf-8"))
+            if not isinstance(data, dict) or not isinstance(data.get("styles"), list):
+                return web.json_response({"error": "Invalid style_mixer_data.json"}, status=400)
+            _save(workspace_path, data)
+
+            # Restore images
+            for name in names:
+                if name.startswith("images/styles/") or name.startswith("images/mixes/"):
+                    parts = name.split("/")  # ["images", "styles"|"mixes", "filename"]
+                    if len(parts) != 3 or not parts[2]:
+                        continue
+                    _, subdir, fname = parts
+                    dest_dir = os.path.join(input_dir, "immac_style_mixer", subdir)
+                    os.makedirs(dest_dir, exist_ok=True)
+                    dest = os.path.join(dest_dir, fname)
+                    with open(dest, "wb") as f:
+                        f.write(zf.read(name))
+
+        styles_n = len(data.get("styles", []))
+        mixes_n = len(data.get("mixes", []))
+        img_n = sum(
+            1 for n in names
+            if (n.startswith("images/styles/") or n.startswith("images/mixes/"))
+            and n.split("/")[-1]
+        )
+        return web.json_response({
+            "status": "ok",
+            "styles": styles_n,
+            "mixes": mixes_n,
+            "images": img_n,
+        })
+
     app.add_routes(routes)

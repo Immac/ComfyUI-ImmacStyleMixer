@@ -97,36 +97,64 @@ async function init(): Promise<void> {
   function restoreBackup() {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = '.json,application/json'
+    input.accept = '.json,.zip,application/json,application/zip'
     input.onchange = () => {
       const file = input.files?.[0]
       if (!file) return
-      const reader = new FileReader()
-      reader.onload = async (ev) => {
-        try {
-          const parsed = JSON.parse(ev.target?.result as string)
-          if (!Array.isArray(parsed.styles) || !Array.isArray(parsed.mixes)) {
-            throw new Error('Invalid backup: missing styles or mixes arrays.')
-          }
-          const resp = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(parsed),
-          })
-          if (!resp.ok) throw new Error(`Save failed: HTTP ${resp.status}`)
+      const isZip = file.name.endsWith('.zip') || file.type === 'application/zip'
+
+      if (isZip) {
+        // ZIP restore — send raw bytes to the server which handles extraction
+        file.arrayBuffer().then(async (buf) => {
           try {
-            ;(window as any).app?.toast?.add({
-              severity: 'success',
-              summary: 'Style Mixer',
-              detail: `Backup restored: ${parsed.styles.length} styles, ${parsed.mixes.length} mixes. Reload the Style Mixer panel to see changes.`,
-              life: 6000,
+            const resp = await fetch('/immac_style_mixer/api/restore.zip', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/zip' },
+              body: buf,
             })
-          } catch (_) { /* not inside ComfyUI */ }
-        } catch (err) {
-          alert(`Failed to restore backup: ${(err as Error).message}`)
+            const result = await resp.json()
+            if (!resp.ok) throw new Error(result.error ?? `HTTP ${resp.status}`)
+            try {
+              ;(window as any).app?.toast?.add({
+                severity: 'success',
+                summary: 'Style Mixer',
+                detail: `ZIP restored: ${result.styles} styles, ${result.mixes} mixes, ${result.images} images. Reload the Style Mixer panel to see changes.`,
+                life: 6000,
+              })
+            } catch (_) { /* not inside ComfyUI */ }
+          } catch (err) {
+            alert(`Failed to restore ZIP backup: ${(err as Error).message}`)
+          }
+        }).catch((err) => alert(`Could not read file: ${(err as Error).message}`))
+      } else {
+        // JSON restore
+        const reader = new FileReader()
+        reader.onload = async (ev) => {
+          try {
+            const parsed = JSON.parse(ev.target?.result as string)
+            if (!Array.isArray(parsed.styles) || !Array.isArray(parsed.mixes)) {
+              throw new Error('Invalid backup: missing styles or mixes arrays.')
+            }
+            const resp = await fetch(API_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(parsed),
+            })
+            if (!resp.ok) throw new Error(`Save failed: HTTP ${resp.status}`)
+            try {
+              ;(window as any).app?.toast?.add({
+                severity: 'success',
+                summary: 'Style Mixer',
+                detail: `Backup restored: ${parsed.styles.length} styles, ${parsed.mixes.length} mixes. Reload the Style Mixer panel to see changes.`,
+                life: 6000,
+              })
+            } catch (_) { /* not inside ComfyUI */ }
+          } catch (err) {
+            alert(`Failed to restore backup: ${(err as Error).message}`)
+          }
         }
+        reader.readAsText(file)
       }
-      reader.readAsText(file)
     }
     input.click()
   }
@@ -155,8 +183,8 @@ async function init(): Promise<void> {
           zipBtn.onclick = () => downloadZip()
 
           const ulBtn = document.createElement('button')
-          ulBtn.textContent = '⬆ Restore backup'
-          ulBtn.title = 'Load styles and mixes from a JSON backup file'
+          ulBtn.textContent = '⬆ Restore (JSON or ZIP)'
+          ulBtn.title = 'Restore from a JSON or ZIP backup — auto-detected'
           ulBtn.style.cssText = 'cursor:pointer;padding:4px 10px;border-radius:4px'
           ulBtn.onclick = () => restoreBackup()
 
