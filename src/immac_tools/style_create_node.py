@@ -189,7 +189,8 @@ class StyleCreateNode:
 
         elif creation_mode == "Create or Update":
             if existing is not None:
-                existing["value"] = value
+                if value:
+                    existing["value"] = value
                 existing["favorite"] = favorite
                 _apply_image(existing, example_image, force=True)
                 _save_data(data)
@@ -208,7 +209,8 @@ class StyleCreateNode:
 
         elif creation_mode == "Overwrite":
             if existing is not None:
-                existing["value"] = value
+                if value:
+                    existing["value"] = value
                 existing["favorite"] = favorite
                 _apply_image(existing, example_image, force=True)
                 _save_data(data)
