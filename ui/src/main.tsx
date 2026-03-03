@@ -170,7 +170,18 @@ async function init(): Promise<void> {
         updatePreview(String(comboWidget.value ?? ''))
       }
 
+      // Store so loadedGraphNode can call it after values are restored
+      node._immacUpdatePreview = () => updatePreview(String(comboWidget.value ?? ''))
+
+      // Only call immediately for newly placed nodes (not workflow reloads)
+      // loadedGraphNode handles the reload case with the correct restored value
       if (comboWidget.value) updatePreview(String(comboWidget.value))
+    },
+
+    loadedGraphNode(node: any) {
+      if (typeof node._immacUpdatePreview === 'function') {
+        node._immacUpdatePreview()
+      }
     },
   })
 }
