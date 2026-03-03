@@ -10,6 +10,8 @@ from .src.immac_tools.style_mix_node import StyleMixNode
 from .src.immac_tools.style_create_node import StyleCreateNode
 from .src.immac_tools.style_modify_node import StyleModifyNode
 from .src.immac_tools.style_pick_node import StylePickNode
+from .src.immac_tools.style_weight_node import StyleWeightNode
+from .src.immac_tools.style_blend_node import StyleBlendNode
 
 # Node registry
 NODE_CLASS_MAPPINGS = {
@@ -17,12 +19,16 @@ NODE_CLASS_MAPPINGS = {
     "StyleCreateImmacStyleMixer": StyleCreateNode,
     "StyleModifyImmacStyleMixer": StyleModifyNode,
     "StylePickImmacStyleMixer": StylePickNode,
+    "StyleWeightImmacStyleMixer": StyleWeightNode,
+    "StyleBlendImmacStyleMixer": StyleBlendNode,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "StyleMixImmacStyleMixer": "Style Mix",
     "StyleCreateImmacStyleMixer": "Create Style",
     "StyleModifyImmacStyleMixer": "Modify Style",
     "StylePickImmacStyleMixer": "Style Pick",
+    "StyleWeightImmacStyleMixer": "Weight Style",
+    "StyleBlendImmacStyleMixer": "Style Blend",
 }
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
 
