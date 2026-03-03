@@ -236,7 +236,7 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
               src={styleImageUrl(style.image_filename, style.image_updated_at)}
               alt={style.name}
               style={{
-                width: '100%', height: '100%', objectFit: 'cover',
+                width: '100%', height: '100%', objectFit: 'contain',
                 transition: 'transform 0.3s ease',
                 transform: imageHovered ? 'scale(1.05)' : 'scale(1)',
               }}

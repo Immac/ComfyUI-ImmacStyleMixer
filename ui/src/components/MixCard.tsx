@@ -285,7 +285,7 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
               src={mixImageUrl(mix.image_filename, mix.image_updated_at)}
               alt={mix.name}
               style={{
-                width: '100%', height: '100%', objectFit: 'cover',
+                width: '100%', height: '100%', objectFit: 'contain',
                 transition: 'transform 0.3s ease',
                 transform: imageHovered ? 'scale(1.05)' : 'scale(1)',
               }}

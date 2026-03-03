@@ -232,7 +232,7 @@ export default function StyleMixerPanel() {
                             src={styleImageUrl(style.image_filename, style.image_updated_at)}
                             alt={style.name}
                             style={{
-                              width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+                              width: '100%', height: '100%', objectFit: 'contain', display: 'block',
                               transition: 'transform 0.3s ease',
                               transform: hoveredChipId === entry.style_id ? 'scale(1.05)' : 'scale(1)',
                             }}
