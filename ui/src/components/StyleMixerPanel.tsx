@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useStyleMixerData, styleImageUrl } from '../hooks/useStyleMixerData'
 import { Mix, MixEntry, Style, StyleMixerData } from '../types'
 import MixCard from './MixCard'
@@ -150,6 +150,49 @@ export default function StyleMixerPanel() {
     })
   }, [currentMix, updateMix])
 
+  // ── Backup / Restore ────────────────────────────────────────────────────────
+
+  const uploadRef = useRef<HTMLInputElement>(null)
+
+  const downloadBackup = useCallback(() => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const date = new Date().toISOString().slice(0, 10)
+    a.href = url
+    a.download = `style_mixer_backup_${date}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [data])
+
+  const handleUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string) as StyleMixerData
+        if (!Array.isArray(parsed.styles) || !Array.isArray(parsed.mixes)) {
+          throw new Error('Invalid backup file: missing styles or mixes arrays.')
+        }
+        update(parsed)
+        try {
+          ;(window as any).app?.toast?.add({
+            severity: 'success',
+            summary: 'Style Mixer',
+            detail: `Backup restored: ${parsed.styles.length} styles, ${parsed.mixes.length} mixes.`,
+            life: 4000,
+          })
+        } catch (_) { /* not inside ComfyUI */ }
+      } catch (err) {
+        alert(`Failed to restore backup: ${(err as Error).message}`)
+      }
+      // Reset the file input so the same file can be re-uploaded if needed.
+      if (uploadRef.current) uploadRef.current.value = ''
+    }
+    reader.readAsText(file)
+  }, [update])
+
   if (loading) return <div style={panelStyle}>Loading…</div>
   if (error) return <div style={{ ...panelStyle, color: '#e55' }}>Error: {error}</div>
 
@@ -159,6 +202,41 @@ export default function StyleMixerPanel() {
 
   return (
     <div style={panelStyle}>
+      {/* ── Backup / Restore toolbar ────────────────────────────────────── */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 6,
+        padding: '6px 0 4px',
+        flexShrink: 0,
+        borderBottom: '1px solid var(--p-surface-border, #333)',
+        marginBottom: 2,
+      }}>
+        <button
+          title="Download backup (JSON)"
+          onClick={downloadBackup}
+          style={toolbarBtnStyle}
+        >
+          <i className="pi pi-download" style={{ fontSize: 12 }} />
+          <span>Backup</span>
+        </button>
+        <button
+          title="Restore from backup (JSON)"
+          onClick={() => uploadRef.current?.click()}
+          style={toolbarBtnStyle}
+        >
+          <i className="pi pi-upload" style={{ fontSize: 12 }} />
+          <span>Restore</span>
+        </button>
+        <input
+          ref={uploadRef}
+          type="file"
+          accept=".json,application/json"
+          style={{ display: 'none' }}
+          onChange={handleUpload}
+        />
+      </div>
+
       {/* ── Current Mix ──────────────────────────────────────────────────── */}
       <CollapsibleSection title="Current Mix" grow={false}>
         {!currentMix ? (
@@ -388,4 +466,18 @@ const panelStyle: React.CSSProperties = {
   color: 'var(--p-text-color, #eee)',
   fontSize: 13,
   boxSizing: 'border-box',
+}
+
+const toolbarBtnStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 5,
+  background: 'var(--p-surface-section, #1e1e1e)',
+  border: '1px solid var(--p-surface-border, #444)',
+  borderRadius: 5,
+  color: 'var(--p-text-color, #ccc)',
+  cursor: 'pointer',
+  fontSize: 11,
+  padding: '3px 8px',
+  lineHeight: 1.4,
 }
