@@ -25,7 +25,6 @@ export function useStyleMixerData() {
   }, [])
 
   // Debounced save — writes 400ms after the last update.
-  // Pass { silent: true } to skip marking a pending refresh badge (e.g. weight-only changes).
   const update = useCallback((next: StyleMixerData | ((prev: StyleMixerData) => StyleMixerData), options?: { silent?: boolean }) => {
     const prev = dataRef.current
     const resolved = typeof next === 'function' ? next(prev) : next
@@ -68,9 +67,9 @@ export function useStyleMixerData() {
           console.warn('[ImmacStyleMixer] refreshComboInNodes/toast failed', e)
         }
         setPendingRefresh(false)
-      } else {
+      } else if (!options?.silent) {
         // Show the badge so the user can choose when to reload.
-        if (!options?.silent) setPendingRefresh(true)
+        setPendingRefresh(true)
       }
     }
 
