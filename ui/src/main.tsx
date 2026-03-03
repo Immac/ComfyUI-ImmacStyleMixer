@@ -112,8 +112,11 @@ async function init(): Promise<void> {
               headers: { 'Content-Type': 'application/zip' },
               body: buf,
             })
+            if (!resp.ok) {
+              const text = await resp.text()
+              throw new Error(`HTTP ${resp.status}: ${text.slice(0, 300)}`)
+            }
             const result = await resp.json()
-            if (!resp.ok) throw new Error(result.error ?? `HTTP ${resp.status}`)
             try {
               ;(window as any).app?.toast?.add({
                 severity: 'success',
