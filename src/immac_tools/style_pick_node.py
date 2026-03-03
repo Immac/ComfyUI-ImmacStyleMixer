@@ -1,7 +1,8 @@
 """StylePickNode — picks a saved style and outputs its name, id, and value."""
 
 import os
-from typing import Any
+
+from comfy_api.latest import io
 
 from ._style_utils import DATA_FILE_PATH, load_data
 
@@ -12,34 +13,38 @@ def _style_names() -> list[str]:
     return names if names else ["(no styles saved)"]
 
 
-class StylePickNode:
+class StylePickNode(io.ComfyNode):
     """Picks a saved style and outputs its name, id, and prompt value."""
 
     @classmethod
-    def INPUT_TYPES(cls) -> dict[str, Any]:
-        return {
-            "required": {
-                "style": (_style_names(), {}),
-            }
-        }
-
-    RETURN_TYPES = ("STRING", "STRING", "STRING")
-    RETURN_NAMES = ("style_name", "style_id", "style_value")
-    FUNCTION = "execute"
-    CATEGORY = "Immac/Style Mixer"
-    DESCRIPTION = "Picks a saved style and outputs its name, id, and prompt value."
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="StylePickImmacStyleMixer",
+            display_name="Style Pick",
+            category="Immac/Style Mixer",
+            description="Picks a saved style and outputs its name, id, and prompt value.",
+            inputs=[
+                io.Combo.Input("style", options=_style_names()),
+            ],
+            outputs=[
+                io.String.Output(display_name="style_name"),
+                io.String.Output(display_name="style_id"),
+                io.String.Output(display_name="style_value"),
+            ],
+        )
 
     @classmethod
-    def IS_CHANGED(cls, style: str) -> float:
+    def fingerprint_inputs(cls, **_kwargs) -> float:
         """Invalidate cache whenever the data file changes."""
         try:
             return os.path.getmtime(DATA_FILE_PATH)
         except OSError:
             return float("nan")
 
-    def execute(self, style: str) -> tuple[str, str, str]:
+    @classmethod
+    def execute(cls, style: str) -> io.NodeOutput:
         data = load_data()
         found = next((s for s in data.get("styles", []) if s["name"] == style), None)
         if found is None:
-            return (style, "", "")
-        return (found["name"], found["id"], found.get("value", "").strip())
+            return io.NodeOutput(style, "", "")
+        return io.NodeOutput(found["name"], found["id"], found.get("value", "").strip())

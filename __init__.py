@@ -5,6 +5,8 @@ import server
 from aiohttp import web
 import nodes
 
+from comfy_api.latest import ComfyExtension, io
+
 from .src.immac_tools.api import register_routes
 from .src.immac_tools.style_mix_node import StyleMixNode
 from .src.immac_tools.style_create_node import StyleCreateNode
@@ -13,24 +15,21 @@ from .src.immac_tools.style_pick_node import StylePickNode
 from .src.immac_tools.style_weight_node import StyleWeightNode
 from .src.immac_tools.style_blend_node import StyleBlendNode
 
-# Node registry
-NODE_CLASS_MAPPINGS = {
-    "StyleMixImmacStyleMixer": StyleMixNode,
-    "StyleCreateImmacStyleMixer": StyleCreateNode,
-    "StyleModifyImmacStyleMixer": StyleModifyNode,
-    "StylePickImmacStyleMixer": StylePickNode,
-    "StyleWeightImmacStyleMixer": StyleWeightNode,
-    "StyleBlendImmacStyleMixer": StyleBlendNode,
-}
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "StyleMixImmacStyleMixer": "Style Mix",
-    "StyleCreateImmacStyleMixer": "Create Style",
-    "StyleModifyImmacStyleMixer": "Modify Style",
-    "StylePickImmacStyleMixer": "Style Pick",
-    "StyleWeightImmacStyleMixer": "Weight Style",
-    "StyleBlendImmacStyleMixer": "Style Blend",
-}
-__all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
+
+class ImmacStyleMixerExtension(ComfyExtension):
+    async def get_node_list(self) -> list[type[io.ComfyNode]]:
+        return [
+            StyleMixNode,
+            StyleCreateNode,
+            StyleModifyNode,
+            StylePickNode,
+            StyleWeightNode,
+            StyleBlendNode,
+        ]
+
+
+async def comfy_entrypoint() -> ImmacStyleMixerExtension:
+    return ImmacStyleMixerExtension()
 
 workspace_path = os.path.dirname(__file__)
 dist_path = os.path.join(workspace_path, "dist", "immac_style_mixer")

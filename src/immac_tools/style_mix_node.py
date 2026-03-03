@@ -2,11 +2,13 @@
 
 import json
 import os
-from typing import Any
+
+from comfy_api.latest import io
 
 _DATA_FILE_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "style_mixer_data.json")
 )
+
 
 def _load_data() -> dict:
     if not os.path.exists(_DATA_FILE_PATH):
@@ -47,30 +49,32 @@ def _build_prompt(mix_name: str) -> str:
     return ", ".join(parts)
 
 
-class StyleMixNode:
+class StyleMixNode(io.ComfyNode):
     """Outputs the assembled prompt string for a saved style mix."""
 
     @classmethod
-    def INPUT_TYPES(cls) -> dict[str, Any]:
-        return {
-            "required": {
-                "mix": (_mix_names(), {}),
-            }
-        }
-
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("prompt",)
-    FUNCTION = "execute"
-    CATEGORY = "Immac/Style Mixer"
-    DESCRIPTION = "Outputs the prompt text assembled from the selected style mix."
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="StyleMixImmacStyleMixer",
+            display_name="Style Mix",
+            category="Immac/Style Mixer",
+            description="Outputs the prompt text assembled from the selected style mix.",
+            inputs=[
+                io.Combo.Input("mix", options=_mix_names()),
+            ],
+            outputs=[
+                io.String.Output(display_name="prompt"),
+            ],
+        )
 
     @classmethod
-    def IS_CHANGED(cls, mix: str) -> float:
+    def fingerprint_inputs(cls, **_kwargs) -> float:
         """Return the data file's mtime so ComfyUI invalidates the cache on every save."""
         try:
             return os.path.getmtime(_DATA_FILE_PATH)
         except OSError:
             return float("nan")
 
-    def execute(self, mix: str) -> tuple[str]:
-        return (_build_prompt(mix),)
+    @classmethod
+    def execute(cls, mix: str) -> io.NodeOutput:
+        return io.NodeOutput(_build_prompt(mix))

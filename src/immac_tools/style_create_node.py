@@ -1,8 +1,9 @@
 """StyleCreateNode — creates a new style in style_mixer_data.json."""
 
-import os
 import uuid
-from typing import Any
+import os
+
+from comfy_api.latest import io
 
 from ._style_utils import DATA_FILE_PATH, apply_image, load_data, save_data
 
@@ -12,7 +13,7 @@ _IF_EXISTS_MODES = [
 ]
 
 
-class StyleCreateNode:
+class StyleCreateNode(io.ComfyNode):
     """Creates a new style entry in the Style Mixer data file.
 
     Use 'if_exists' to control behaviour when a style with the same name
@@ -24,49 +25,50 @@ class StyleCreateNode:
     """
 
     @classmethod
-    def INPUT_TYPES(cls) -> dict[str, Any]:
-        return {
-            "required": {
-                "name": ("STRING", {"default": "", "multiline": False}),
-                "value": ("STRING", {"default": "", "multiline": True}),
-                "if_exists": (_IF_EXISTS_MODES, {"default": "Fail"}),
-            },
-            "optional": {
-                "favorite": ("BOOLEAN", {"default": False}),
-                "example_image": ("IMAGE", {}),
-            },
-        }
-
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("style_id", "style_value")
-    OUTPUT_NODE = True
-    FUNCTION = "execute"
-    CATEGORY = "Immac/Style Mixer"
-    DESCRIPTION = (
-        "Creates a new style in the Style Mixer data file.\n"
-        "\n"
-        "if_exists controls what happens when a style with the same name already exists:\n"
-        "  Fail — raises an error (safe default).\n"
-        "  Skip — returns the existing style unchanged.\n"
-        "\n"
-        "To update an existing style, use the Modify Style node."
-    )
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="StyleCreateImmacStyleMixer",
+            display_name="Create Style",
+            category="Immac/Style Mixer",
+            is_output_node=True,
+            description=(
+                "Creates a new style in the Style Mixer data file.\n"
+                "\n"
+                "if_exists controls what happens when a style with the same name already exists:\n"
+                "  Fail — raises an error (safe default).\n"
+                "  Skip — returns the existing style unchanged.\n"
+                "\n"
+                "To update an existing style, use the Modify Style node."
+            ),
+            inputs=[
+                io.String.Input("name", default="", multiline=False),
+                io.String.Input("value", default="", multiline=True),
+                io.Combo.Input("if_exists", options=_IF_EXISTS_MODES, default="Fail"),
+                io.Boolean.Input("favorite", optional=True, default=False),
+                io.Image.Input("example_image", optional=True),
+            ],
+            outputs=[
+                io.String.Output(display_name="style_id"),
+                io.String.Output(display_name="style_value"),
+            ],
+        )
 
     @classmethod
-    def IS_CHANGED(cls, **_kwargs: Any) -> float:
+    def fingerprint_inputs(cls, **_kwargs) -> float:
         try:
             return os.path.getmtime(DATA_FILE_PATH)
         except OSError:
             return float("nan")
 
+    @classmethod
     def execute(
-        self,
+        cls,
         name: str,
         value: str,
         if_exists: str,
         favorite: bool = False,
-        example_image: Any = None,
-    ) -> tuple[str, str]:
+        example_image=None,
+    ) -> io.NodeOutput:
         name = name.strip()
         value = value.strip()
 
@@ -85,16 +87,16 @@ class StyleCreateNode:
                     f"(id={existing['id']}). Use 'Skip' or the Modify Style node."
                 )
             # Skip — return existing unchanged
-            return (existing["id"], existing.get("value", ""))
+            return io.NodeOutput(existing["id"], existing.get("value", ""))
 
         new_style: dict = {
             "id": str(uuid.uuid4()),
             "name": name,
             "value": value,
-            "favorite": favorite,
+            "favorite": favorite if favorite is not None else False,
             "image_filename": None,
         }
         apply_image(new_style, example_image, name, force=False)
         styles.append(new_style)
         save_data(data)
-        return (new_style["id"], new_style["value"])
+        return io.NodeOutput(new_style["id"], new_style["value"])

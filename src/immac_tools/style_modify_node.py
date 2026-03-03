@@ -1,12 +1,13 @@
 """StyleModifyNode — updates an existing style in style_mixer_data.json."""
 
 import os
-from typing import Any
+
+from comfy_api.latest import io
 
 from ._style_utils import DATA_FILE_PATH, apply_image, load_data, save_data
 
 
-class StyleModifyNode:
+class StyleModifyNode(io.ComfyNode):
     """Updates an existing style entry in the Style Mixer data file.
 
     Requires a style_id (typically piped from a Style Pick node).
@@ -16,51 +17,52 @@ class StyleModifyNode:
     """
 
     @classmethod
-    def INPUT_TYPES(cls) -> dict[str, Any]:
-        return {
-            "required": {
-                "style_id": ("STRING", {"forceInput": True}),
-            },
-            "optional": {
-                "name": ("STRING", {"default": "", "multiline": False}),
-                "value": ("STRING", {"default": "", "multiline": True}),
-                "favorite": ("BOOLEAN", {"default": False}),
-                "example_image": ("IMAGE", {}),
-            },
-        }
-
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("style_id", "style_value")
-    OUTPUT_NODE = True
-    FUNCTION = "execute"
-    CATEGORY = "Immac/Style Mixer"
-    DESCRIPTION = (
-        "Updates an existing style in the Style Mixer data file.\n"
-        "\n"
-        "style_id is required and must be wired in (e.g. from a Style Pick node).\n"
-        "All other inputs are optional — leave them empty to keep the existing value.\n"
-        "\n"
-        "To create a new style, use the Create Style node instead."
-    )
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="StyleModifyImmacStyleMixer",
+            display_name="Modify Style",
+            category="Immac/Style Mixer",
+            is_output_node=True,
+            description=(
+                "Updates an existing style in the Style Mixer data file.\n"
+                "\n"
+                "style_id is required and must be wired in (e.g. from a Style Pick node).\n"
+                "All other inputs are optional — leave them empty to keep the existing value.\n"
+                "\n"
+                "To create a new style, use the Create Style node instead."
+            ),
+            inputs=[
+                io.String.Input("style_id", force_input=True),
+                io.String.Input("name", optional=True, default="", multiline=False),
+                io.String.Input("value", optional=True, default="", multiline=True),
+                io.Boolean.Input("favorite", optional=True, default=False),
+                io.Image.Input("example_image", optional=True),
+            ],
+            outputs=[
+                io.String.Output(display_name="style_id"),
+                io.String.Output(display_name="style_value"),
+            ],
+        )
 
     @classmethod
-    def IS_CHANGED(cls, **_kwargs: Any) -> float:
+    def fingerprint_inputs(cls, **_kwargs) -> float:
         try:
             return os.path.getmtime(DATA_FILE_PATH)
         except OSError:
             return float("nan")
 
+    @classmethod
     def execute(
-        self,
+        cls,
         style_id: str,
         name: str = "",
         value: str = "",
         favorite: bool = False,
-        example_image: Any = None,
-    ) -> tuple[str, str]:
-        style_id = style_id.strip()
-        name = name.strip()
-        value = value.strip()
+        example_image=None,
+    ) -> io.NodeOutput:
+        style_id = (style_id or "").strip()
+        name = (name or "").strip()
+        value = (value or "").strip()
 
         if not style_id:
             raise ValueError("[StyleModifyNode] 'style_id' must not be empty.")
@@ -78,8 +80,8 @@ class StyleModifyNode:
             style["name"] = name
         if value:
             style["value"] = value
-        style["favorite"] = favorite
+        style["favorite"] = favorite if favorite is not None else style.get("favorite", False)
         apply_image(style, example_image, style.get("name", ""), force=True)
 
         save_data(data)
-        return (style["id"], style["value"])
+        return io.NodeOutput(style["id"], style["value"])
