@@ -66,6 +66,37 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
         e.dataTransfer.setData('application/x-immac-style-id', style.id)
         e.dataTransfer.setData('application/x-immac-style-name', style.name)
         e.dataTransfer.effectAllowed = 'copy'
+        // Invisible drag ghost so the browser ghost doesn't interfere
+        const ghost = document.createElement('div')
+        ghost.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:1px;height:1px'
+        document.body.appendChild(ghost)
+        e.dataTransfer.setDragImage(ghost, 0, 0)
+        requestAnimationFrame(() => document.body.removeChild(ghost))
+      }}
+      onDragEnd={(e) => {
+        // ComfyUI intercepts canvas 'drop', so create the node on dragend instead
+        // (same pattern as MixCard canvas drop).
+        const lgCanvas = (window as any).app?.canvas
+        if (!lgCanvas) return
+        const canvasEl: HTMLCanvasElement | null = lgCanvas.canvas
+        if (!canvasEl) return
+        const rect = canvasEl.getBoundingClientRect()
+        if (
+          e.clientX < rect.left || e.clientX > rect.right ||
+          e.clientY < rect.top  || e.clientY > rect.bottom
+        ) return
+        const pos: [number, number] = lgCanvas.convertEventToCanvasOffset(e)
+        const LG = (window as any).LiteGraph
+        const node = LG?.createNode('StylePickImmacStyleMixer')
+        if (!node) return
+        node.pos = pos
+        ;(window as any).app?.graph?.add(node)
+        const widget = node.widgets?.find((w: any) => w.name === 'style')
+        if (widget) {
+          widget.value = style.name
+          widget.callback?.(style.name, null, null, null, node)
+        }
+        ;(window as any).app?.graph?.setDirtyCanvas(true, true)
       }}
       style={{
         border: '1px solid var(--p-surface-border, #444)',
