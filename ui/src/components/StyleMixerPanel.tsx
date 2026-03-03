@@ -325,26 +325,27 @@ export default function StyleMixerPanel() {
 
       {/* ── Mixes ────────────────────────────────────────────────────────── */}
       <CollapsibleSection title="Mixes">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'row', overflowX: 'auto', gap: 10, paddingBottom: 4 }}>
           {sortedMixes.map((mix) => (
-            <MixCard
-              key={mix.id}
-              mix={mix}
-              styles={data.styles}
-              isActive={mix.id === data.current_mix_id}
-              isDirty={pendingRefresh}
-              onActivate={() => setCurrentMix(mix.id)}
-              onUpdate={updateMix}
-              onDelete={() => deleteMix(mix.id)}
-              onDuplicate={() => duplicateMix(mix)}
-              onRefreshCache={refreshNodes}
-            />
+            <div key={mix.id} style={{ flex: '0 0 280px' }}>
+              <MixCard
+                mix={mix}
+                styles={data.styles}
+                isActive={mix.id === data.current_mix_id}
+                isDirty={pendingRefresh}
+                onActivate={() => setCurrentMix(mix.id)}
+                onUpdate={updateMix}
+                onDelete={() => deleteMix(mix.id)}
+                onDuplicate={() => duplicateMix(mix)}
+                onRefreshCache={refreshNodes}
+              />
+            </div>
           ))}
           <button
             title="Add a new mix"
             onClick={addMix}
             style={{
-              width: '100%',
+              flex: '0 0 120px',
               minHeight: 80,
               border: '1px dashed var(--p-surface-border, #555)',
               borderRadius: 8,
