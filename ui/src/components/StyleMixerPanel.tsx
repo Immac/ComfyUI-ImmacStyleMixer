@@ -291,9 +291,9 @@ export default function StyleMixerPanel() {
                           <BarInput
                             value={entry.weight}
                             onChange={(v) => updateCurrentMixEntry(entry.style_id, { weight: v }, { silent: true })}
-                            min={0}
-                            max={1}
-                            step={0.05}
+                            min={-10}
+                            max={10}
+                            step={0.01}
                             width="100%"
                           />
                         </div>

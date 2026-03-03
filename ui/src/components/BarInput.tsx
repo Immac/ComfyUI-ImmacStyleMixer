@@ -27,9 +27,9 @@ interface Props {
 export default function BarInput({
   value,
   onChange,
-  min = 0,
-  max = 1,
-  step = 0.05,
+  min = -10,
+  max = 10,
+  step = 0.01,
   pixelsPerStep = 2,
   width = 72,
   decimals = 2,

@@ -359,9 +359,9 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
               <BarInput
                 value={entry.weight}
                 onChange={(v) => updateEntry(i, { weight: v })}
-                min={0}
-                max={1}
-                step={0.05}
+                min={-10}
+                max={10}
+                step={0.01}
                 width={64}
               />
 
