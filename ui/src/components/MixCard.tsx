@@ -84,12 +84,6 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = 'copy'
         e.dataTransfer.setData('application/x-immac-mix-name', mix.name)
-        // Set an invisible drag image so the browser ghost doesn't interfere
-        const ghost = document.createElement('div')
-        ghost.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:1px;height:1px'
-        document.body.appendChild(ghost)
-        e.dataTransfer.setDragImage(ghost, 0, 0)
-        requestAnimationFrame(() => document.body.removeChild(ghost))
       }}
       onDragEnd={(e) => {
         // ComfyUI intercepts the canvas 'drop' event, so we create the node here

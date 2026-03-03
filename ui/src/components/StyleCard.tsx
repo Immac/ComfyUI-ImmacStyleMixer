@@ -66,12 +66,6 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
         e.dataTransfer.setData('application/x-immac-style-id', style.id)
         e.dataTransfer.setData('application/x-immac-style-name', style.name)
         e.dataTransfer.effectAllowed = 'copy'
-        // Invisible drag ghost so the browser ghost doesn't interfere
-        const ghost = document.createElement('div')
-        ghost.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:1px;height:1px'
-        document.body.appendChild(ghost)
-        e.dataTransfer.setDragImage(ghost, 0, 0)
-        requestAnimationFrame(() => document.body.removeChild(ghost))
       }}
       onDragEnd={(e) => {
         // ComfyUI intercepts canvas 'drop', so create the node on dragend instead
