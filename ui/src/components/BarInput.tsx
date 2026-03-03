@@ -129,6 +129,8 @@ export default function BarInput({
 
   return (
     <div
+      draggable={false}
+      onDragStart={(e) => e.stopPropagation()}
       style={{
         position: 'relative',
         width,
