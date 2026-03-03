@@ -166,21 +166,25 @@ async function init(): Promise<void> {
     name: 'ImmacStyleMixer',
 
     setup() {
-      // Drop a style card onto the canvas → create a StylePickImmacStyleMixer node
-      const canvasEl = document.querySelector<HTMLCanvasElement>('#graph-canvas')
-      if (!canvasEl) return
+      // Drop a style card onto the canvas → create a StylePickImmacStyleMixer node.
+      // Attach to document so this works regardless of when #graph-canvas is inserted.
+      function isCanvasTarget(target: EventTarget | null): boolean {
+        const el = target as HTMLElement | null
+        return !!el && (el.id === 'graph-canvas' || !!el.closest?.('#graph-canvas'))
+      }
 
-      canvasEl.addEventListener('dragover', (e: DragEvent) => {
-        if (e.dataTransfer?.types.includes('application/x-immac-style-id')) {
-          e.preventDefault()
-          if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
-        }
+      document.addEventListener('dragover', (e: DragEvent) => {
+        if (!e.dataTransfer?.types.includes('application/x-immac-style-id')) return
+        if (!isCanvasTarget(e.target)) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'copy'
       })
 
-      canvasEl.addEventListener('drop', (e: DragEvent) => {
+      document.addEventListener('drop', (e: DragEvent) => {
         const styleId   = e.dataTransfer?.getData('application/x-immac-style-id')
         const styleName = e.dataTransfer?.getData('application/x-immac-style-name')
         if (!styleId || !styleName) return
+        if (!isCanvasTarget(e.target)) return
         e.preventDefault()
         e.stopPropagation()
 
@@ -188,6 +192,8 @@ async function init(): Promise<void> {
         if (!app) return
 
         // Convert drop screen position → graph coordinates
+        const canvasEl = document.querySelector<HTMLCanvasElement>('#graph-canvas')
+        if (!canvasEl) return
         const rect    = canvasEl.getBoundingClientRect()
         const offsetX = e.clientX - rect.left
         const offsetY = e.clientY - rect.top
