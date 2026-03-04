@@ -233,8 +233,10 @@ async function init(): Promise<void> {
         container.style.setProperty('--comfy-widget-height', String(clamped))
         const s = node.computeSize?.()
         if (s) node.setSize([Math.max(node.size[0], s[0]), Math.max(node.size[1], s[1])])
-        // Mirror ComfyUI's own pattern (useNodeImage.ts): call setDirtyCanvas
-        // once via the node's graph reference after the image has loaded.
+        console.log('[ImmacStyleMixer] applyImageSize', { clamped, nodeGraph: !!node.graph, appCanvas: !!(window.app as any)?.canvas })
+        // Call setDirty on the canvas object directly (most reliable path)
+        ;(window.app as any)?.canvas?.setDirty(true, true)
+        // Belt-and-suspenders: also via node.graph in case app.canvas differs
         node.graph?.setDirtyCanvas(true, true)
       }
 
@@ -242,15 +244,20 @@ async function init(): Promise<void> {
         container.style.setProperty('--comfy-widget-min-height', '0')
         container.style.setProperty('--comfy-widget-height', '0')
         imgEl.style.display = 'none'
+        ;(window.app as any)?.canvas?.setDirty(true, true)
         node.graph?.setDirtyCanvas(true)
       }
 
       function showUrl(url: string) {
         imgEl.onload = () => {
+          console.log('[ImmacStyleMixer] img loaded', url.slice(0, 60))
           imgEl.style.display = 'block'
           applyImageSize(imgEl.naturalWidth, imgEl.naturalHeight)
         }
-        imgEl.onerror = () => { clearImageSize() }
+        imgEl.onerror = () => {
+          console.warn('[ImmacStyleMixer] img error', url.slice(0, 60))
+          clearImageSize()
+        }
         imgEl.src = url
       }
 
@@ -318,6 +325,7 @@ async function init(): Promise<void> {
       requestAnimationFrame(() => {
         if (!node._immacPreviewScheduled) return  // loadedGraphNode already handled it
         const w = node.widgets?.find((w: any) => w.name === widgetName)
+        console.log('[ImmacStyleMixer] nodeCreated rAF', { val: w?.value })
         if (w?.value) updatePreview(String(w.value))
       })
     },
@@ -330,20 +338,12 @@ async function init(): Promise<void> {
 
       const isPickNode = node.comfyClass === 'StylePickImmacStyleMixer'
       const widgetName = isPickNode ? 'style' : 'mix'
+      const comboWidget = node.widgets?.find((w: any) => w.name === widgetName)
+      const currentVal = String(comboWidget?.value ?? '')
+      console.log('[ImmacStyleMixer] loadedGraphNode scheduling rAF', { currentVal })
 
-      // Use onAfterGraphConfigured which fires after ALL nodes in the graph
-      // have been configured and widget values restored from the saved workflow.
-      // This is more deterministic than requestAnimationFrame, which can fire
-      // before ComfyUI finishes applying saved widget values.
-      const prev = node.onAfterGraphConfigured
-      node.onAfterGraphConfigured = function (this: any) {
-        prev?.call(this)
-
-        const comboWidget = node.widgets?.find((w: any) => w.name === widgetName)
-        const currentVal = String(comboWidget?.value ?? '')
-
-        // If the node was saved while the list was empty (placeholder value),
-        // fetch fresh data and upgrade to the first real item so preview shows.
+      requestAnimationFrame(() => {
+        console.log('[ImmacStyleMixer] loadedGraphNode rAF firing', { currentVal })
         if (currentVal === '(no styles saved)' || currentVal === '(no mixes saved)') {
           fetch('/immac_style_mixer/api/data')
             .then((r) => r.json())
@@ -362,7 +362,7 @@ async function init(): Promise<void> {
         } else {
           node._immacUpdatePreview(currentVal)
         }
-      }
+      })
     },
   })
 }
