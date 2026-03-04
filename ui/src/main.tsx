@@ -165,7 +165,7 @@ async function init(): Promise<void> {
 
     nodeCreated(node: any) {
       if (
-        node.comfyClass !== 'StyleMixImmacStyleMixer' &&
+        node.comfyClass !== 'PickMixImmacStyleMixer' &&
         node.comfyClass !== 'StylePickImmacStyleMixer'
       ) return
 

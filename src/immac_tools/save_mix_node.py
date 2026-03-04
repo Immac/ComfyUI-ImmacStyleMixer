@@ -2,11 +2,43 @@
 
 import json
 import os
+import re
+import time
 import uuid
+
+import numpy as np
+from PIL import Image
 
 from comfy_api.latest import io
 
 from ._style_utils import DATA_FILE_PATH, load_data, save_data
+
+MIX_IMAGE_SUBFOLDER = os.path.join("immac_style_mixer", "mixes")
+
+
+def _save_mix_image(tensor, mix_name: str, existing_filename: str | None = None) -> str:
+    """Save a ComfyUI IMAGE tensor to the input/immac_style_mixer/mixes folder.
+
+    Returns the basename that was written.
+    """
+    import folder_paths  # available at runtime inside ComfyUI
+
+    input_dir = folder_paths.get_input_directory()
+    out_dir = os.path.join(input_dir, MIX_IMAGE_SUBFOLDER)
+    os.makedirs(out_dir, exist_ok=True)
+
+    frame = tensor[0]  # [H, W, C]
+    arr = (frame.cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
+    img = Image.fromarray(arr)
+
+    if existing_filename:
+        filename = existing_filename
+    else:
+        safe = re.sub(r"[^\w\-]", "_", mix_name)[:40]
+        filename = f"mix_{safe}_{uuid.uuid4().hex[:8]}.png"
+
+    img.save(os.path.join(out_dir, filename))
+    return filename
 
 _MODE = [
     "Create",
@@ -47,6 +79,8 @@ class SaveMixNode(io.ComfyNode):
                 io.String.Input("blend_json", force_input=True),
                 io.String.Input("name", default="", multiline=False),
                 io.Combo.Input("mode", options=_MODE, default="Update (by name)"),
+                io.String.Input("id", optional=True, default="", multiline=False),
+                io.Image.Input("example_image", optional=True),
             ],
             outputs=[
                 io.String.Output(display_name="mix_id"),
@@ -61,10 +95,19 @@ class SaveMixNode(io.ComfyNode):
             return float("nan")
 
     @classmethod
-    def execute(cls, blend_json: str, name: str, mode: str) -> io.NodeOutput:
+    def execute(
+        cls,
+        blend_json: str,
+        name: str,
+        mode: str,
+        id: str = "",
+        example_image=None,
+    ) -> io.NodeOutput:
         name = (name or "").strip()
         if not name:
             raise ValueError("[SaveMixNode] 'name' must not be empty.")
+
+        forced_id = (id or "").strip()
 
         try:
             entries = json.loads(blend_json)
@@ -86,7 +129,13 @@ class SaveMixNode(io.ComfyNode):
 
         data = load_data()
         mixes: list[dict] = data.setdefault("mixes", [])
-        existing = next((m for m in mixes if m.get("name") == name), None)
+
+        # Look up existing mix: prefer id match, fall back to name match
+        existing = (
+            next((m for m in mixes if m.get("id") == forced_id), None)
+            if forced_id
+            else None
+        ) or next((m for m in mixes if m.get("name") == name), None)
 
         if mode == "Create":
             if existing is not None:
@@ -94,15 +143,29 @@ class SaveMixNode(io.ComfyNode):
                     f"[SaveMixNode] A mix named '{name}' already exists "
                     f"(id={existing['id']}). Use 'Update (by name)' to overwrite."
                 )
-            mix_id = str(uuid.uuid4())
-            mixes.append({"id": mix_id, "name": name, "styles": mix_styles})
+            mix_id = forced_id or str(uuid.uuid4())
+            new_mix: dict = {"id": mix_id, "name": name, "styles": mix_styles}
+            if example_image is not None:
+                new_mix["image_filename"] = _save_mix_image(example_image, name)
+                new_mix["image_updated_at"] = int(time.time())
+            mixes.append(new_mix)
         else:  # "Update (by name)"
             if existing is not None:
                 existing["styles"] = mix_styles
                 mix_id = existing["id"]
+                if example_image is not None:
+                    existing["image_filename"] = _save_mix_image(
+                        example_image, name,
+                        existing_filename=existing.get("image_filename") or None,
+                    )
+                    existing["image_updated_at"] = int(time.time())
             else:
-                mix_id = str(uuid.uuid4())
-                mixes.append({"id": mix_id, "name": name, "styles": mix_styles})
+                mix_id = forced_id or str(uuid.uuid4())
+                new_mix = {"id": mix_id, "name": name, "styles": mix_styles}
+                if example_image is not None:
+                    new_mix["image_filename"] = _save_mix_image(example_image, name)
+                    new_mix["image_updated_at"] = int(time.time())
+                mixes.append(new_mix)
 
         save_data(data)
         return io.NodeOutput(mix_id)
