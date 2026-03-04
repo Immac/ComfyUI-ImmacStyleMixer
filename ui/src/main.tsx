@@ -11,33 +11,17 @@ declare global {
 const StyleMixerPanel = React.lazy(() => import('./components/StyleMixerPanel'))
 
 /**
- * Resolves once LiteGraph's canvas animation loop has fired at least one frame.
- * This guarantees that setDirtyCanvas() calls will actually be consumed by the
- * renderer — which is not true immediately after a page reload, regardless of
- * how many JS ticks have elapsed.
+ * Calls setDirtyCanvas on each of the next `frames` rAF ticks.
  *
- * LiteGraph's LGraphCanvas increments `canvas.frame` once per rAF draw cycle.
- * Polling via requestAnimationFrame is purely event-driven: no magic numbers,
- * no wasted delay on fast machines, no breakage on slow ones.
+ * On initial page load the LiteGraph render loop may not have started yet when
+ * loadedGraphNode fires, so a single setDirtyCanvas(true) is silently dropped.
+ * By re-issuing it across multiple consecutive frames we guarantee at least one
+ * call lands after the loop is live — without needing to know exactly when that
+ * happens and without any magic timeout.
  */
-function waitForCanvasReady(timeoutMs = 10_000): Promise<void> {
-  return new Promise((resolve) => {
-    const deadline = Date.now() + timeoutMs
-    function check() {
-      const frame = (window.app as any)?.canvas?.frame
-      if (typeof frame === 'number' && frame > 0) {
-        resolve()
-        return
-      }
-      if (Date.now() >= deadline) {
-        console.warn('[ImmacStyleMixer] waitForCanvasReady timed out — previews may not show correctly')
-        resolve()
-        return
-      }
-      requestAnimationFrame(check)
-    }
-    requestAnimationFrame(check)
-  })
+function scheduleCanvasDirty(frames = 10): void {
+  window.app?.graph?.setDirtyCanvas(true, true)
+  if (frames > 1) requestAnimationFrame(() => scheduleCanvasDirty(frames - 1))
 }
 
 function waitForApp(): Promise<void> {
@@ -263,11 +247,10 @@ async function init(): Promise<void> {
         container.style.setProperty('--comfy-widget-height', String(clamped))
         const s = node.computeSize?.()
         if (s) node.setSize([Math.max(node.size[0], s[0]), Math.max(node.size[1], s[1])])
-        window.app?.graph?.setDirtyCanvas(true)
-        // Second dirty call after a short delay — ensures the canvas animation
-        // loop (which may not have started yet on initial page load) picks up
-        // the change even if the first setDirtyCanvas was consumed too early.
-        setTimeout(() => window.app?.graph?.setDirtyCanvas(true), 100)
+        // Fire setDirtyCanvas across the next 10 rAF frames. On page load the
+        // canvas render loop may not have started yet; repeated calls guarantee
+        // at least one lands once it does, with zero wasted time on fast loads.
+        scheduleCanvasDirty(10)
       }
 
       function clearImageSize() {
@@ -363,11 +346,11 @@ async function init(): Promise<void> {
       const comboWidget = node.widgets?.find((w: any) => w.name === widgetName)
       const currentVal = String(comboWidget?.value ?? '')
 
-      // Wait until LiteGraph's canvas render loop has actually fired at least
-      // one frame before triggering the preview. This is purely event-driven
-      // (rAF-based) so it works regardless of how long the browser takes to
-      // start the animation loop — no magic timeout needed.
-      waitForCanvasReady().then(() => {
+      // Wait one tick so ComfyUI has finished synchronous widget-value patching
+      // from the saved workflow, then load the preview. setDirtyCanvas calls
+      // inside applyImageSize will repeat across rAF frames until the canvas
+      // render loop is live — no canvas-ready polling needed.
+      setTimeout(() => {
         // If the node was saved while the list was empty (placeholder value),
         // fetch fresh data and upgrade to the first real item so preview shows.
         if (currentVal === '(no styles saved)' || currentVal === '(no mixes saved)') {
@@ -390,7 +373,7 @@ async function init(): Promise<void> {
           // reference inside _immacUpdatePreview being up-to-date.
           node._immacUpdatePreview(currentVal)
         }
-      })
+      }, 0)
     },
   })
 }
