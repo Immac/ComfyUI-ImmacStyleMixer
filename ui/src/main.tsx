@@ -293,45 +293,68 @@ async function init(): Promise<void> {
       const origCallback = comboWidget.callback
       comboWidget.callback = function (...args: any[]) {
         origCallback?.apply(this, args)
-        updatePreview(String(comboWidget.value ?? ''))
+        // Always read the current widget value fresh from node.widgets
+        const w = node.widgets?.find((w: any) => w.name === widgetName)
+        updatePreview(String(w?.value ?? ''))
       }
 
-      // Store so loadedGraphNode can call it after values are restored
-      node._immacUpdatePreview = () => updatePreview(String(comboWidget.value ?? ''))
+      // Accept an explicit value so loadedGraphNode can pass the restored value
+      // directly, avoiding any closure-staleness issue. Falls back to a fresh
+      // widget lookup when called without an argument (e.g. from the callback).
+      node._immacUpdatePreview = (explicitVal?: string) => {
+        const w = node.widgets?.find((w: any) => w.name === widgetName)
+        updatePreview(explicitVal ?? String(w?.value ?? ''))
+      }
 
-      // Only call immediately for newly placed nodes (not workflow reloads)
-      // loadedGraphNode handles the reload case with the correct restored value
-      if (comboWidget.value) updatePreview(String(comboWidget.value))
+      // For freshly created nodes (not restores) loadedGraphNode is never called,
+      // so we schedule a deferred first-paint here. We set a flag so that if
+      // loadedGraphNode fires for this node (restore path) it can cancel this.
+      node._immacPreviewScheduled = true
+      setTimeout(() => {
+        if (!node._immacPreviewScheduled) return  // loadedGraphNode already handled it
+        const w = node.widgets?.find((w: any) => w.name === widgetName)
+        if (w?.value) updatePreview(String(w.value))
+      }, 0)
     },
 
     loadedGraphNode(node: any) {
       if (typeof node._immacUpdatePreview !== 'function') return
+
+      // Cancel the nodeCreated deferred call — we handle it here with the
+      // correct restored value that ComfyUI has now applied to the widgets.
+      node._immacPreviewScheduled = false
 
       const isPickNode = node.comfyClass === 'StylePickImmacStyleMixer'
       const widgetName = isPickNode ? 'style' : 'mix'
       const comboWidget = node.widgets?.find((w: any) => w.name === widgetName)
       const currentVal = String(comboWidget?.value ?? '')
 
-      // If the node was saved while the list was empty (placeholder value),
-      // fetch fresh data and upgrade to the first real item so the preview shows.
-      if (currentVal === '(no styles saved)' || currentVal === '(no mixes saved)') {
-        fetch('/immac_style_mixer/api/data')
-          .then((r) => r.json())
-          .then((data) => {
-            const items: any[] = isPickNode ? (data.styles ?? []) : (data.mixes ?? [])
-            if (items.length > 0 && comboWidget) {
-              comboWidget.value = items[0].name
-              // Update the dropdown options list if accessible
-              if (Array.isArray(comboWidget.options?.values)) {
-                comboWidget.options.values = items.map((i: any) => i.name)
+      // Defer by one tick so ComfyUI finishes all synchronous restore work
+      // (size, positions, widget value patching) before we trigger any fetch.
+      setTimeout(() => {
+        // If the node was saved while the list was empty (placeholder value),
+        // fetch fresh data and upgrade to the first real item so preview shows.
+        if (currentVal === '(no styles saved)' || currentVal === '(no mixes saved)') {
+          fetch('/immac_style_mixer/api/data')
+            .then((r) => r.json())
+            .then((data) => {
+              const items: any[] = isPickNode ? (data.styles ?? []) : (data.mixes ?? [])
+              const w = node.widgets?.find((w: any) => w.name === widgetName)
+              if (items.length > 0 && w) {
+                w.value = items[0].name
+                if (Array.isArray(w.options?.values)) {
+                  w.options.values = items.map((i: any) => i.name)
+                }
               }
-            }
-            node._immacUpdatePreview()
-          })
-          .catch(() => node._immacUpdatePreview())
-      } else {
-        node._immacUpdatePreview()
-      }
+              node._immacUpdatePreview()
+            })
+            .catch(() => node._immacUpdatePreview())
+        } else {
+          // Pass the restored value explicitly — don't rely on the closure
+          // reference inside _immacUpdatePreview being up-to-date.
+          node._immacUpdatePreview(currentVal)
+        }
+      }, 0)
     },
   })
 }
