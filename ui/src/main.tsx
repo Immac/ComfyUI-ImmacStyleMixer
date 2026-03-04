@@ -314,6 +314,35 @@ async function init(): Promise<void> {
       })
     },
   })
+
+  // ── Refresh previews after image-writing nodes finish executing ───────────
+  // SaveMixImmacStyleMixer, StyleCreateImmacStyleMixer, and
+  // StyleModifyImmacStyleMixer can all update an image_filename field.
+  // When any of them finishes, re-run _immacUpdatePreview on every
+  // PickMix / StylePick node so their thumbnails stay current.
+  const IMAGE_WRITING_CLASSES = new Set([
+    'SaveMixImmacStyleMixer',
+    'StyleCreateImmacStyleMixer',
+    'StyleModifyImmacStyleMixer',
+  ])
+
+  function refreshAllPreviews() {
+    const nodes: any[] = (app as any).graph?._nodes ?? []
+    for (const n of nodes) {
+      if (typeof n._immacUpdatePreview === 'function') {
+        n._immacUpdatePreview()
+      }
+    }
+  }
+
+  ;(app as any).api?.addEventListener('executed', (ev: any) => {
+    const nodeId = ev?.detail?.node
+    if (nodeId == null) return
+    const executedNode = (app as any).graph?._nodes_by_id?.[nodeId]
+    if (IMAGE_WRITING_CLASSES.has(executedNode?.comfyClass)) {
+      refreshAllPreviews()
+    }
+  })
 }
 
 init().catch(console.error)
