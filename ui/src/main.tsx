@@ -10,6 +10,36 @@ declare global {
 
 const StyleMixerPanel = React.lazy(() => import('./components/StyleMixerPanel'))
 
+/**
+ * Resolves once LiteGraph's canvas animation loop has fired at least one frame.
+ * This guarantees that setDirtyCanvas() calls will actually be consumed by the
+ * renderer — which is not true immediately after a page reload, regardless of
+ * how many JS ticks have elapsed.
+ *
+ * LiteGraph's LGraphCanvas increments `canvas.frame` once per rAF draw cycle.
+ * Polling via requestAnimationFrame is purely event-driven: no magic numbers,
+ * no wasted delay on fast machines, no breakage on slow ones.
+ */
+function waitForCanvasReady(timeoutMs = 10_000): Promise<void> {
+  return new Promise((resolve) => {
+    const deadline = Date.now() + timeoutMs
+    function check() {
+      const frame = (window.app as any)?.canvas?.frame
+      if (typeof frame === 'number' && frame > 0) {
+        resolve()
+        return
+      }
+      if (Date.now() >= deadline) {
+        console.warn('[ImmacStyleMixer] waitForCanvasReady timed out — previews may not show correctly')
+        resolve()
+        return
+      }
+      requestAnimationFrame(check)
+    }
+    requestAnimationFrame(check)
+  })
+}
+
 function waitForApp(): Promise<void> {
   return new Promise((resolve) => {
     function check() {
@@ -333,11 +363,11 @@ async function init(): Promise<void> {
       const comboWidget = node.widgets?.find((w: any) => w.name === widgetName)
       const currentVal = String(comboWidget?.value ?? '')
 
-      // Defer long enough for ComfyUI to finish its async post-load work:
-      // canvas setup, graph fit, requestAnimationFrame loop start, etc.
-      // setTimeout(0) is not enough — the canvas render loop hasn't started
-      // yet on the first page load, so setDirtyCanvas would be ignored.
-      setTimeout(() => {
+      // Wait until LiteGraph's canvas render loop has actually fired at least
+      // one frame before triggering the preview. This is purely event-driven
+      // (rAF-based) so it works regardless of how long the browser takes to
+      // start the animation loop — no magic timeout needed.
+      waitForCanvasReady().then(() => {
         // If the node was saved while the list was empty (placeholder value),
         // fetch fresh data and upgrade to the first real item so preview shows.
         if (currentVal === '(no styles saved)' || currentVal === '(no mixes saved)') {
@@ -360,7 +390,7 @@ async function init(): Promise<void> {
           // reference inside _immacUpdatePreview being up-to-date.
           node._immacUpdatePreview(currentVal)
         }
-      }, 500)
+      })
     },
   })
 }
