@@ -1,5 +1,6 @@
 // /scripts/app.js is an external — types declared in src/comfy.d.ts,
 // module resolved to ComfyUI's runtime at runtime (not bundled by Vite).
+// @ts-ignore — tsc can't resolve absolute URL externals; Vite handles this correctly.
 import { app } from '/scripts/app.js'
 import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom/client'
@@ -194,7 +195,7 @@ async function init(): Promise<void> {
 
       function triggerRedraw() {
         const hasGraph = !!node.graph
-        const hasCanvas = !!(window.app as any)?.canvas
+        const hasCanvas = !!(app as any)?.canvas
         console.log(`[ImmacStyleMixer][${node.id}] triggerRedraw — graph:${hasGraph} canvas:${hasCanvas} previewHeight:${previewHeight}`)
         node.graph?.setDirtyCanvas(true, true)
         ;(app as any)?.canvas?.setDirty(true, true)
