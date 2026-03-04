@@ -13,16 +13,25 @@ export function useStyleMixerData() {
   const dataRef = useRef<StyleMixerData>(EMPTY_DATA)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => {
-    fetch(API_URL)
+  const fetchData = useCallback(() => {
+    return fetch(API_URL)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json() as Promise<StyleMixerData>
       })
       .then((d) => { dataRef.current = d; setData(d) })
       .catch((e: unknown) => setError(String(e)))
-      .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    fetchData().finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    const handler = () => { fetchData().catch(() => {}) }
+    window.addEventListener('immac:execution_success', handler)
+    return () => window.removeEventListener('immac:execution_success', handler)
+  }, [fetchData])
 
   // Debounced save — writes 400ms after the last update.
   const update = useCallback((next: StyleMixerData | ((prev: StyleMixerData) => StyleMixerData), options?: { silent?: boolean }) => {

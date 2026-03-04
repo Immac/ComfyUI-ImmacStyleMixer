@@ -334,6 +334,7 @@ async function init(): Promise<void> {
 
   api.addEventListener('execution_success', () => {
     refreshAllPreviews()
+    window.dispatchEvent(new CustomEvent('immac:execution_success'))
   })
 }
 
