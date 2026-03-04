@@ -10,20 +10,6 @@ declare global {
 
 const StyleMixerPanel = React.lazy(() => import('./components/StyleMixerPanel'))
 
-/**
- * Calls setDirtyCanvas on each of the next `frames` rAF ticks.
- *
- * On initial page load the LiteGraph render loop may not have started yet when
- * loadedGraphNode fires, so a single setDirtyCanvas(true) is silently dropped.
- * By re-issuing it across multiple consecutive frames we guarantee at least one
- * call lands after the loop is live — without needing to know exactly when that
- * happens and without any magic timeout.
- */
-function scheduleCanvasDirty(frames = 10): void {
-  window.app?.graph?.setDirtyCanvas(true, true)
-  if (frames > 1) requestAnimationFrame(() => scheduleCanvasDirty(frames - 1))
-}
-
 function waitForApp(): Promise<void> {
   return new Promise((resolve) => {
     function check() {
@@ -247,17 +233,16 @@ async function init(): Promise<void> {
         container.style.setProperty('--comfy-widget-height', String(clamped))
         const s = node.computeSize?.()
         if (s) node.setSize([Math.max(node.size[0], s[0]), Math.max(node.size[1], s[1])])
-        // Fire setDirtyCanvas across the next 10 rAF frames. On page load the
-        // canvas render loop may not have started yet; repeated calls guarantee
-        // at least one lands once it does, with zero wasted time on fast loads.
-        scheduleCanvasDirty(10)
+        // Mirror ComfyUI's own pattern (useNodeImage.ts): call setDirtyCanvas
+        // once via the node's graph reference after the image has loaded.
+        node.graph?.setDirtyCanvas(true, true)
       }
 
       function clearImageSize() {
         container.style.setProperty('--comfy-widget-min-height', '0')
         container.style.setProperty('--comfy-widget-height', '0')
         imgEl.style.display = 'none'
-        window.app?.graph?.setDirtyCanvas(true)
+        node.graph?.setDirtyCanvas(true)
       }
 
       function showUrl(url: string) {
@@ -326,12 +311,15 @@ async function init(): Promise<void> {
       // For freshly created nodes (not restores) loadedGraphNode is never called,
       // so we schedule a deferred first-paint here. We set a flag so that if
       // loadedGraphNode fires for this node (restore path) it can cancel this.
+      // Mirror ComfyUI's own pattern (useImageUploadWidget.ts): use
+      // requestAnimationFrame to defer past the synchronous graph configuration
+      // so the canvas render loop is alive when setDirtyCanvas fires.
       node._immacPreviewScheduled = true
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         if (!node._immacPreviewScheduled) return  // loadedGraphNode already handled it
         const w = node.widgets?.find((w: any) => w.name === widgetName)
         if (w?.value) updatePreview(String(w.value))
-      }, 0)
+      })
     },
 
     loadedGraphNode(node: any) {
@@ -346,11 +334,10 @@ async function init(): Promise<void> {
       const comboWidget = node.widgets?.find((w: any) => w.name === widgetName)
       const currentVal = String(comboWidget?.value ?? '')
 
-      // Wait one tick so ComfyUI has finished synchronous widget-value patching
-      // from the saved workflow, then load the preview. setDirtyCanvas calls
-      // inside applyImageSize will repeat across rAF frames until the canvas
-      // render loop is live — no canvas-ready polling needed.
-      setTimeout(() => {
+      // Mirror ComfyUI's own pattern (useImageUploadWidget.ts): use
+      // requestAnimationFrame to defer past the synchronous graph configuration
+      // phase so the canvas loop is live when setDirtyCanvas fires later.
+      requestAnimationFrame(() => {
         // If the node was saved while the list was empty (placeholder value),
         // fetch fresh data and upgrade to the first real item so preview shows.
         if (currentVal === '(no styles saved)' || currentVal === '(no mixes saved)') {
@@ -373,7 +360,7 @@ async function init(): Promise<void> {
           // reference inside _immacUpdatePreview being up-to-date.
           node._immacUpdatePreview(currentVal)
         }
-      }, 0)
+      })
     },
   })
 }
