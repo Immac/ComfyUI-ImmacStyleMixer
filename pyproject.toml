@@ -1,12 +1,12 @@
 [project]
 name = "ComfyUI-ImmacStyleMixer"
-version = "0.0.1"
-description = "A collection of Nodes for personal use."
+version = "0.1.0"
+description = "ComfyUI custom node package with a Style Mixer sidebar panel and nodes for managing reusable prompt styles and named mixes."
 authors = [
   {name = "Immac", email = "immac.gm@gmail.com"}
 ]
 readme = "README.md"
-license = {text = "MIT license"}
+license = {text = "MIT"}
 requires-python = ">=3.10"
 classifiers = []
 dependencies = [
@@ -24,17 +24,16 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/Immac/ComfyUI-ImmacTools"
-BugTracker = "https://github.com/Immac/ComfyUI-ImmacTools/issues"
-Documentation = "https://github.com/Immac/ComfyUI-ImmacTools/wiki"
+Repository = "https://github.com/Immac/ComfyUI-ImmacStyleMixer"
+BugTracker = "https://github.com/Immac/ComfyUI-ImmacStyleMixer/issues"
 
 
 [tool.comfy]
 PublisherId = "immac"
-DisplayName = "Immac's Tools"
+DisplayName = "Immac Style Mixer"
 Icon = ""
-Tags = ["sigmas"]
-Repository = "https://github.com/Immac/ComfyUI-ImmacTools"
+Tags = ["styles", "prompts", "sidebar"]
+Repository = "https://github.com/Immac/ComfyUI-ImmacStyleMixer"
 
 includes = ["dist/"]
 

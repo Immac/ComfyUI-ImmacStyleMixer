@@ -1,7 +1,7 @@
 {
-    "name": "Immac Tools",
-    "icon": "🧰",
-    "description": "A collection of Nodes for personal use.",
+    "name": "Immac Style Mixer",
+    "icon": "🎨",
+    "description": "ComfyUI custom node package with a Style Mixer sidebar panel and nodes for managing reusable prompt styles and named mixes.",
     "author": "Immac",
-    "version": "0.0.2"
+    "version": "0.1.0"
 }
