@@ -325,19 +325,23 @@ async function init(): Promise<void> {
     loadedGraphNode(node: any) {
       if (typeof node._immacUpdatePreview !== 'function') return
 
-      // Cancel the nodeCreated deferred call — we handle it here with the
-      // correct restored value that ComfyUI has now applied to the widgets.
+      // Cancel the nodeCreated deferred rAF — we own the restore path here.
       node._immacPreviewScheduled = false
 
       const isPickNode = node.comfyClass === 'StylePickImmacStyleMixer'
       const widgetName = isPickNode ? 'style' : 'mix'
-      const comboWidget = node.widgets?.find((w: any) => w.name === widgetName)
-      const currentVal = String(comboWidget?.value ?? '')
 
-      // Mirror ComfyUI's own pattern (useImageUploadWidget.ts): use
-      // requestAnimationFrame to defer past the synchronous graph configuration
-      // phase so the canvas loop is live when setDirtyCanvas fires later.
-      requestAnimationFrame(() => {
+      // Use onAfterGraphConfigured which fires after ALL nodes in the graph
+      // have been configured and widget values restored from the saved workflow.
+      // This is more deterministic than requestAnimationFrame, which can fire
+      // before ComfyUI finishes applying saved widget values.
+      const prev = node.onAfterGraphConfigured
+      node.onAfterGraphConfigured = function (this: any) {
+        prev?.call(this)
+
+        const comboWidget = node.widgets?.find((w: any) => w.name === widgetName)
+        const currentVal = String(comboWidget?.value ?? '')
+
         // If the node was saved while the list was empty (placeholder value),
         // fetch fresh data and upgrade to the first real item so preview shows.
         if (currentVal === '(no styles saved)' || currentVal === '(no mixes saved)') {
@@ -356,11 +360,9 @@ async function init(): Promise<void> {
             })
             .catch(() => node._immacUpdatePreview())
         } else {
-          // Pass the restored value explicitly — don't rely on the closure
-          // reference inside _immacUpdatePreview being up-to-date.
           node._immacUpdatePreview(currentVal)
         }
-      })
+      }
     },
   })
 }
