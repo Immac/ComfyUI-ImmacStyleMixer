@@ -1,99 +1,99 @@
+# ComfyUI-ImmacStyleMixer
 
-# Immac Tools
+A ComfyUI custom node package that adds a **Style Mixer** sidebar panel for managing reusable prompt styles and named mixes, plus a set of nodes to use those styles directly inside your workflows.
 
-A small collection of ComfyUI extension nodes created for personal use.
+---
 
-## Quick summary
+## Features
 
-- Package: `ComfyUI-ImmacTools`
-- Purpose: ComfyUI extension providing utility nodes.
+### Sidebar panel
+
+Open the **Immac Style Mixer** tab in the ComfyUI sidebar to:
+
+- **Styles** — create, edit, and delete named prompt snippets with an optional thumbnail image.
+  - Drag-and-drop or click to upload a thumbnail.
+  - Favorite styles sort to the top of the grid.
+  - Click the magnify icon to open a full-size lightbox.
+  - Copy the prompt text to the clipboard in one click.
+  - Drag a style card onto the canvas to instantly create a **Style Pick** node wired to that style.
+- **Mixes** — combine styles into a named mix with individual per-style weights and on/off toggles.
+  - Draggable bar inputs for weights (ComfyUI-native feel).
+  - Copy the fully assembled prompt for the selected mix.
+  - The **Current Mix** section shows the active mix's styles and their thumbnails at a glance.
+- **Node preview** — Style Mix nodes show a live thumbnail of the selected mix directly on the canvas node.
+
+All data is stored in `style_mixer_data.json` beside the custom node and persisted via a lightweight REST API.
+
+### Custom nodes (category `Immac/Style Mixer`)
+
+| Node | Node ID | Description |
+|---|---|---|
+| **Style Mix** | `StyleMixImmacStyleMixer` | Picks a saved mix by name and outputs the assembled weighted prompt string. |
+| **Style Pick** | `StylePickImmacStyleMixer` | Picks a saved style by name and outputs `style_name`, `style_id`, and `style_value`. |
+| **Weight Style** | `StyleWeightImmacStyleMixer` | Pairs a `style_id` (from Style Pick) with a weight; outputs a `style_entry` JSON for Style Blend and a `weighted_value` string. |
+| **Style Blend** | `StyleBlendImmacStyleMixer` | Aggregates up to 16 weighted `style_entry` inputs into a `blend_json` and an assembled `prompt`. Supports deduplication and weight normalisation modes. |
+| **Save Mix** | `SaveMixImmacStyleMixer` | Persists a `blend_json` (from Style Blend) as a named mix. Supports *Create* and *Update (by name)* modes. |
+| **Create Style** | `StyleCreateImmacStyleMixer` | Creates a new style entry (name, prompt value, optional image). *Fail* or *Skip* on duplicate names. |
+| **Modify Style** | `StyleModifyImmacStyleMixer` | Updates an existing style by `style_id`. Only non-empty inputs overwrite the stored value. |
+
+---
 
 ## Installation
 
-This repository is intended to be used as a ComfyUI custom node. Install it by one of the following methods:
-
-A) ComfyUI Manager (When/If published)
-
-- Use ComfyUI's built-in extension/manager (if available) to add this repo directly by URL. The manager will clone the repository into the appropriate `custom_nodes` folder and keep it updated.
-
-B) Clone into your ComfyUI `custom_nodes` folder
-
-1. From your ComfyUI repository root (or wherever you keep custom nodes), clone this repo into the `custom_nodes` directory:
+Clone into your ComfyUI `custom_nodes` directory and restart ComfyUI:
 
 ```bash
-# Example (from ComfyUI repo root)
-git clone https://github.com/Immac/ComfyUI-ImmacTools custom_nodes/ComfyUI-ImmacTools
+cd /path/to/ComfyUI/custom_nodes
+git clone https://github.com/Immac/ComfyUI-ImmacStyleMixer
 ```
 
-2. Restart ComfyUI. The extension's `comfy_entrypoint` should be discovered and the nodes will appear in the node list.
+ComfyUI will discover the `comfy_entrypoint` automatically. The sidebar tab and all nodes will appear after the next restart.
 
-# Immac Tools
+> **ComfyUI Manager** — if you use a manager that supports Git URLs, add `https://github.com/Immac/ComfyUI-ImmacStyleMixer` directly.
 
-A small collection of ComfyUI custom nodes created for personal use and convenience.
+---
 
-## Quick summary
+## Development
 
-- Package: `immac_tools`
-- Purpose: Utility nodes for ComfyUI (sigma schedule helpers and small helpers).
+### Prerequisites
 
-## Installation
+- Python 3.12+ with `comfy_api` available (a running ComfyUI environment).
+- Node.js 18+ and npm (for the React UI).
 
-This repository is intended to be installed as a ComfyUI custom node. Two common installation methods:
-
-1) Clone into your ComfyUI `custom_nodes` folder
-
-From your ComfyUI repository root (or wherever you keep custom nodes), clone this repo into the `custom_nodes` directory:
+### Build the UI
 
 ```bash
-# Example (from ComfyUI repo root)
-git clone https://github.com/Immac/ComfyUI-ImmacTools custom_nodes/immac_tools
+cd ui
+npm install
+npm run build
 ```
 
-Then restart ComfyUI. The extension entrypoint should be discovered and the nodes will appear in the node list.
+The compiled assets are written to `dist/immac_style_mixer/` and committed to the repository so end users do not need Node.js.
 
-2) ComfyUI Manager (if available)
+### Project layout
 
-If you use a community manager/extension manager that supports installing extensions by Git URL, add this repo's URL and let the manager clone/update it for you.
+```
+__init__.py                  # ComfyUI entry point — registers nodes, API routes, and static files
+src/immac_tools/
+    api.py                   # REST API (GET/POST /immac_style_mixer/api/data, export/import)
+    style_mix_node.py        # Style Mix node
+    style_pick_node.py       # Style Pick node
+    style_weight_node.py     # Weight Style node
+    style_blend_node.py      # Style Blend node
+    save_mix_node.py         # Save Mix node
+    style_create_node.py     # Create Style node
+    style_modify_node.py     # Modify Style node
+    _style_utils.py          # Shared data load/save helpers
+ui/src/
+    main.tsx                 # ComfyUI sidebar tab registration + canvas node preview
+    components/              # React components (StyleMixerPanel, StyleCard, MixCard, …)
+    hooks/useStyleMixerData.ts
+style_mixer_data.json        # Persisted styles and mixes (auto-created on first use)
+dist/immac_style_mixer/      # Built UI assets (committed)
+```
 
-## Where the code lives
+---
 
-- Node implementations: `src/immac_tools/nodes.py` and `src/immac_tools/forwarding_nodes.py`.
-- Python package metadata: `pyproject.toml` and top-level package under `src/immac_tools`.
+## License
 
-## Nodes included
-
-The main utility nodes included today are:
-
-- Concatenate Sigmas Node
-  - Class: `ConcatenateSigmasImmacTools`
-  - Display name: `Concatenate Sigmas Node`
-  - Inputs: `sigmas_1`, `sigmas_2` (sigma schedules as tensors or lists)
-  - Outputs: concatenated sigma schedule
-  - Behavior: concatenates two sigma schedules, tolerating None inputs and non-torch objects by converting them to tensors.
-
-- Splice Sigmas At %
-  - Class: `SpliceSigmasAtImmacTools`
-  - Display name: `Splice Sigmas At %`
-  - Inputs: `sigmas_a`, `sigmas_b`, `splice` (float 0.0 - 1.0)
-  - Outputs: `spliced_sigmas` (full), `first_part`, `second_part`
-  - Behavior: picks a boundary on `sigmas_a` based on `splice` and combines `sigmas_a` and `sigmas_b` around that boundary. Accepts tensor or list inputs.
-
-- Skip Every Nth Image
-  - Class: `SkipEveryNthImagesImmacTools`
-  - Display name: `Skip Every Nth Image`
-  - Inputs: `images` (batch as list/tuple or torch tensor), `n` (int; n<=0 yields empty output)
-  - Outputs: filtered images batch, indices removed
-  - Behavior: drops every nth image while preserving the order of remaining items; returns the kept batch plus the zero-based indices that were removed.
-
-For full details see the source files mentioned above.
-
-
-
-## Contributing
-
-- Bug reports and feature requests: open an issue on the GitHub repository.
-
-## License & contact
-
-MIT — see `LICENSE`.
-For questions or issues open an issue at: https://github.com/Immac/ComfyUI-ImmacTools
+MIT — see [LICENSE](LICENSE).

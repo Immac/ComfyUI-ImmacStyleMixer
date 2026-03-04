@@ -49,8 +49,33 @@ adding a React/TypeScript Style Mixer UI alongside the existing custom nodes.
 - [x] `components/StyleMixerPanel.tsx` — Current Mix / Mixes / Styles sections wired to data hook
 - [x] Build verified (`tsc && vite build` ✔)
 
-### Step 7 — GitHub Actions CI ← *currently here*
-- `.github/workflows/react-build.yml` — on push to `main`: `npm ci` + `npm run build` inside `ui/`
+### ✅ Step 7 — Documentation and license
+- [x] Rewrite `README.md` to accurately describe the Style Mixer (nodes, sidebar, dev build)
+- [x] Update `PLAN.md` to reflect completed features
+- [x] Verify `LICENSE` (MIT, 2026)
+
+---
+
+## Post-plan features (completed)
+
+These features were implemented after the core plan was done:
+
+### UI polish
+- [x] Auto-fill CSS grid layout — styles: `minmax(180px, 1fr)`, mixes: `minmax(280px, 1fr)`
+- [x] Click card to select mix (removed radio button)
+- [x] Magnify button on style thumbnail hover; `scale-105` CSS transition
+- [x] Full-size image lightbox (`ImageLightbox.tsx`)
+- [x] Copy prompt button on style and mix cards (clipboard API)
+- [x] Draggable bar input for style weights (`BarInput.tsx`) — matches ComfyUI slider feel
+- [x] Delete confirmation shown as centered card overlay (`overflow: hidden` clipping)
+- [x] Overlay shows actual style/mix name in delete prompt
+
+### Canvas integration
+- [x] Drag a style card onto the canvas → creates a `StylePickImmacStyleMixer` node set to that style (uses `onDragEnd` pattern; ComfyUI intercepts the `drop` event itself)
+- [x] Style Mix node shows a thumbnail preview of the selected mix's cover image (or first enabled style fallback)
+  - DOM widget (`addDOMWidget`) renders immediately on node creation — not subject to deprecated `node.imgs` / `setSizeForImage`
+  - `mixWidget.callback` wrapping is the correct hook (fires on arrows, context menu, programmatic calls)
+  - `scheduleCanvasDirty`: 10 rAF frames after node creation to force the canvas to redraw and show the preview on page reload
 
 ---
 
@@ -82,3 +107,4 @@ adding a React/TypeScript Style Mixer UI alongside the existing custom nodes.
 1. Create a `<div><img></div>` DOM widget on the node (`serialize: false`).
 2. Wrap `mixWidget.callback` to call `updatePreview(mixWidget.value)`.
 3. `updatePreview` fetches `/immac_style_mixer/api/data`, finds the mix, resolves the image URL (mix cover → first enabled style thumbnail → nothing), and sets `imgEl.src`. The `<img>` is hidden until loaded.
+4. `scheduleCanvasDirty` fires `setDirtyCanvas(true, true)` across 10 rAF frames after node creation so the preview appears on page reload without a hard race condition against the LiteGraph render loop.
