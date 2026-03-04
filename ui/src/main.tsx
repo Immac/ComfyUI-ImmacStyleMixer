@@ -2,6 +2,8 @@
 // module resolved to ComfyUI's runtime at runtime (not bundled by Vite).
 // @ts-ignore — tsc can't resolve absolute URL externals; Vite handles this correctly.
 import { app } from '/scripts/app.js'
+// @ts-ignore
+import { api } from '/scripts/api.js'
 import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom/client'
 
@@ -315,17 +317,12 @@ async function init(): Promise<void> {
     },
   })
 
-  // ── Refresh previews after image-writing nodes finish executing ───────────
-  // SaveMixImmacStyleMixer, StyleCreateImmacStyleMixer, and
-  // StyleModifyImmacStyleMixer can all update an image_filename field.
-  // When any of them finishes, re-run _immacUpdatePreview on every
-  // PickMix / StylePick node so their thumbnails stay current.
-  const IMAGE_WRITING_CLASSES = new Set([
-    'SaveMixImmacStyleMixer',
-    'StyleCreateImmacStyleMixer',
-    'StyleModifyImmacStyleMixer',
-  ])
-
+  // ── Refresh previews after a workflow finishes executing ─────────────────
+  // We listen on `execution_success` (fires once per completed queue item)
+  // via the directly-imported `api` singleton. Any run could have updated an
+  // image_filename via SaveMix / CreateStyle / ModifyStyle, so we refresh all
+  // PickMix and StylePick node previews. The image_updated_at cache-buster
+  // ensures the browser fetches the new file only when it actually changed.
   function refreshAllPreviews() {
     const nodes: any[] = (app as any).graph?._nodes ?? []
     for (const n of nodes) {
@@ -335,13 +332,8 @@ async function init(): Promise<void> {
     }
   }
 
-  ;(app as any).api?.addEventListener('executed', (ev: any) => {
-    const nodeId = ev?.detail?.node
-    if (nodeId == null) return
-    const executedNode = (app as any).graph?._nodes_by_id?.[nodeId]
-    if (IMAGE_WRITING_CLASSES.has(executedNode?.comfyClass)) {
-      refreshAllPreviews()
-    }
+  api.addEventListener('execution_success', () => {
+    refreshAllPreviews()
   })
 }
 
