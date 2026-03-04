@@ -9,8 +9,6 @@ from comfy_api.latest import ComfyExtension, io
 
 from .src.immac_tools.api import register_routes
 from .src.immac_tools.style_mix_node import PickMixNode, StyleMixNode
-from .src.immac_tools.style_create_node import StyleCreateNode
-from .src.immac_tools.style_modify_node import StyleModifyNode
 from .src.immac_tools.style_pick_node import StylePickNode
 from .src.immac_tools.style_weight_node import StyleWeightNode
 from .src.immac_tools.style_blend_node import StyleBlendNode
@@ -22,8 +20,6 @@ class ImmacStyleMixerExtension(ComfyExtension):
     async def get_node_list(self) -> list[type[io.ComfyNode]]:
         return [
             PickMixNode,
-            StyleCreateNode,
-            StyleModifyNode,
             StylePickNode,
             StyleWeightNode,
             StyleBlendNode,
