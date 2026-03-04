@@ -228,23 +228,30 @@ async function init(): Promise<void> {
         getHeight: () => previewHeight,
       })
 
+      function triggerRedraw() {
+        // Belt-and-suspenders: both paths in case one is unavailable at call time.
+        node.graph?.setDirtyCanvas(true, true)
+        ;(window.app as any)?.canvas?.setDirty(true, true)
+      }
+
       function applyImageSize(natW: number, natH: number) {
         const nodeWidth: number = node.size?.[0] ?? 300
         const ratio = natH / natW
         previewHeight = Math.max(80, Math.min(Math.round((nodeWidth - 8) * ratio), 600))
-        // node.computeSize reads getMinHeight/getHeight callbacks we just updated
+        // node.computeSize reads getMinHeight/getHeight callbacks updated above
         const s = node.computeSize?.()
         if (s) node.setSize([Math.max(node.size[0], s[0]), Math.max(node.size[1], s[1])])
-        // onResize is the canonical signal (matches createImageHost pattern)
         node.onResize?.(node.size)
-        node.setDirtyCanvas(true, true)
+        // Fire immediately, then again on the next frame (canvas may not yet have
+        // run its first render cycle on page load when onload fires).
+        triggerRedraw()
+        requestAnimationFrame(triggerRedraw)
       }
 
       function clearImageSize() {
         previewHeight = 0
         imgEl.style.display = 'none'
-        node.onResize?.(node.size)
-        node.setDirtyCanvas(true, true)
+        triggerRedraw()
       }
 
       function showUrl(url: string) {
