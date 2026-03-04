@@ -1,7 +1,15 @@
 import type { ComfyApp } from '@comfyorg/comfyui-frontend-types'
+import { app } from '/scripts/app.js'
 import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom/client'
 
+// /scripts/app.js is an external — resolved to ComfyUI's module at runtime.
+declare module '/scripts/app.js' {
+  const app: ComfyApp
+  export { app }
+}
+
+// Retain window.app for places that genuinely need the canvas reference.
 declare global {
   interface Window {
     app?: ComfyApp
@@ -10,43 +18,11 @@ declare global {
 
 const StyleMixerPanel = React.lazy(() => import('./components/StyleMixerPanel'))
 
-function waitForApp(): Promise<void> {
-  return new Promise((resolve) => {
-    function check() {
-      if (window.app) {
-        resolve()
-        return
-      }
-      const interval = setInterval(() => {
-        if (window.app) {
-          clearInterval(interval)
-          resolve()
-        }
-      }, 50)
-      setTimeout(() => {
-        clearInterval(interval)
-        console.error('[ImmacStyleMixer] Timeout waiting for ComfyUI app')
-        resolve()
-      }, 5000)
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', check)
-    } else {
-      check()
-    }
-  })
-}
+console.log('[ImmacStyleMixer] module loaded, app:', typeof app, !!(app as any))
 
 async function init(): Promise<void> {
-  await waitForApp()
 
-  if (!window.app) {
-    console.error('[ImmacStyleMixer] ComfyUI app not available')
-    return
-  }
-
-  window.app.extensionManager.registerSidebarTab({
+  ;(app as any).extensionManager.registerSidebarTab({
     id: 'immac-style-mixer',
     icon: 'pi pi-palette',
     title: 'Style Mixer',
@@ -118,7 +94,7 @@ async function init(): Promise<void> {
             }
             const result = await resp.json()
             try {
-              ;(window as any).app?.toast?.add({
+              ;(app as any)?.toast?.add({
                 severity: 'success',
                 summary: 'Style Mixer',
                 detail: `ZIP restored: ${result.styles} styles, ${result.mixes} mixes, ${result.images} images. Reload the Style Mixer panel to see changes.`,
@@ -145,7 +121,7 @@ async function init(): Promise<void> {
             })
             if (!resp.ok) throw new Error(`Save failed: HTTP ${resp.status}`)
             try {
-              ;(window as any).app?.toast?.add({
+              ;(app as any)?.toast?.add({
                 severity: 'success',
                 summary: 'Style Mixer',
                 detail: `Backup restored: ${parsed.styles.length} styles, ${parsed.mixes.length} mixes. Reload the Style Mixer panel to see changes.`,
@@ -162,7 +138,7 @@ async function init(): Promise<void> {
     input.click()
   }
 
-  window.app.registerExtension({
+  ;(app as any).registerExtension({
     name: 'ImmacStyleMixer',
 
     settings: [
@@ -233,7 +209,7 @@ async function init(): Promise<void> {
         const hasCanvas = !!(window.app as any)?.canvas
         console.log(`[ImmacStyleMixer][${node.id}] triggerRedraw — graph:${hasGraph} canvas:${hasCanvas} previewHeight:${previewHeight}`)
         node.graph?.setDirtyCanvas(true, true)
-        ;(window.app as any)?.canvas?.setDirty(true, true)
+        ;(app as any)?.canvas?.setDirty(true, true)
       }
 
       function applyImageSize(natW: number, natH: number) {
