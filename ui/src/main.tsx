@@ -1,20 +1,8 @@
-import type { ComfyApp } from '@comfyorg/comfyui-frontend-types'
+// /scripts/app.js is an external — types declared in src/comfy.d.ts,
+// module resolved to ComfyUI's runtime at runtime (not bundled by Vite).
 import { app } from '/scripts/app.js'
 import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom/client'
-
-// /scripts/app.js is an external — resolved to ComfyUI's module at runtime.
-declare module '/scripts/app.js' {
-  const app: ComfyApp
-  export { app }
-}
-
-// Retain window.app for places that genuinely need the canvas reference.
-declare global {
-  interface Window {
-    app?: ComfyApp
-  }
-}
 
 const StyleMixerPanel = React.lazy(() => import('./components/StyleMixerPanel'))
 
