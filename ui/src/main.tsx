@@ -234,6 +234,10 @@ async function init(): Promise<void> {
         const s = node.computeSize?.()
         if (s) node.setSize([Math.max(node.size[0], s[0]), Math.max(node.size[1], s[1])])
         window.app?.graph?.setDirtyCanvas(true)
+        // Second dirty call after a short delay — ensures the canvas animation
+        // loop (which may not have started yet on initial page load) picks up
+        // the change even if the first setDirtyCanvas was consumed too early.
+        setTimeout(() => window.app?.graph?.setDirtyCanvas(true), 100)
       }
 
       function clearImageSize() {
@@ -329,8 +333,10 @@ async function init(): Promise<void> {
       const comboWidget = node.widgets?.find((w: any) => w.name === widgetName)
       const currentVal = String(comboWidget?.value ?? '')
 
-      // Defer by one tick so ComfyUI finishes all synchronous restore work
-      // (size, positions, widget value patching) before we trigger any fetch.
+      // Defer long enough for ComfyUI to finish its async post-load work:
+      // canvas setup, graph fit, requestAnimationFrame loop start, etc.
+      // setTimeout(0) is not enough — the canvas render loop hasn't started
+      // yet on the first page load, so setDirtyCanvas would be ignored.
       setTimeout(() => {
         // If the node was saved while the list was empty (placeholder value),
         // fetch fresh data and upgrade to the first real item so preview shows.
@@ -354,7 +360,7 @@ async function init(): Promise<void> {
           // reference inside _immacUpdatePreview being up-to-date.
           node._immacUpdatePreview(currentVal)
         }
-      }, 0)
+      }, 500)
     },
   })
 }
