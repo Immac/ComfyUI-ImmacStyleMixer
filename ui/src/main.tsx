@@ -229,7 +229,9 @@ async function init(): Promise<void> {
       })
 
       function triggerRedraw() {
-        // Belt-and-suspenders: both paths in case one is unavailable at call time.
+        const hasGraph = !!node.graph
+        const hasCanvas = !!(window.app as any)?.canvas
+        console.log(`[ImmacStyleMixer][${node.id}] triggerRedraw — graph:${hasGraph} canvas:${hasCanvas} previewHeight:${previewHeight}`)
         node.graph?.setDirtyCanvas(true, true)
         ;(window.app as any)?.canvas?.setDirty(true, true)
       }
@@ -238,42 +240,46 @@ async function init(): Promise<void> {
         const nodeWidth: number = node.size?.[0] ?? 300
         const ratio = natH / natW
         previewHeight = Math.max(80, Math.min(Math.round((nodeWidth - 8) * ratio), 600))
-        // node.computeSize reads getMinHeight/getHeight callbacks updated above
+        console.log(`[ImmacStyleMixer][${node.id}] applyImageSize natW:${natW} natH:${natH} previewHeight:${previewHeight} nodeWidth:${nodeWidth}`)
         const s = node.computeSize?.()
         if (s) node.setSize([Math.max(node.size[0], s[0]), Math.max(node.size[1], s[1])])
         node.onResize?.(node.size)
-        // Fire immediately, then again on the next frame (canvas may not yet have
-        // run its first render cycle on page load when onload fires).
         triggerRedraw()
         requestAnimationFrame(triggerRedraw)
       }
 
       function clearImageSize() {
+        console.log(`[ImmacStyleMixer][${node.id}] clearImageSize`)
         previewHeight = 0
         imgEl.style.display = 'none'
         triggerRedraw()
       }
 
       function showUrl(url: string) {
+        console.log(`[ImmacStyleMixer][${node.id}] showUrl`, url)
         imgEl.onload = () => {
+          console.log(`[ImmacStyleMixer][${node.id}] imgEl.onload natW:${imgEl.naturalWidth} natH:${imgEl.naturalHeight}`)
           imgEl.style.display = 'block'
           applyImageSize(imgEl.naturalWidth, imgEl.naturalHeight)
         }
         imgEl.onerror = () => {
+          console.warn(`[ImmacStyleMixer][${node.id}] imgEl.onerror src:${imgEl.src}`)
           clearImageSize()
         }
         imgEl.src = url
       }
 
       async function updatePreview(value: string) {
+        console.log(`[ImmacStyleMixer][${node.id}] updatePreview value:"${value}" isPickNode:${isPickNode}`)
         try {
           const resp = await fetch('/immac_style_mixer/api/data')
-          if (!resp.ok) return
+          if (!resp.ok) { console.warn(`[ImmacStyleMixer][${node.id}] api/data HTTP ${resp.status}`); return }
           const data = await resp.json()
+          console.log(`[ImmacStyleMixer][${node.id}] api/data styles:${data.styles?.length ?? 0} mixes:${data.mixes?.length ?? 0}`)
 
           if (isPickNode) {
-            // Style Pick: show the selected style's image directly
             const style = (data.styles ?? []).find((s: any) => s.name === value)
+            console.log(`[ImmacStyleMixer][${node.id}] style found:`, style?.name, 'image:', style?.image_filename)
             if (!style?.image_filename) { clearImageSize(); return }
             const bust = style.image_updated_at ? `&t=${style.image_updated_at}` : ''
             showUrl(`/view?filename=${encodeURIComponent(style.image_filename)}&subfolder=immac_style_mixer%2Fstyles&type=input${bust}`)
@@ -295,11 +301,12 @@ async function init(): Promise<void> {
                 url = `/view?filename=${encodeURIComponent(first.image_filename)}&subfolder=immac_style_mixer%2Fstyles&type=input${bust}`
               }
             }
+            console.log(`[ImmacStyleMixer][${node.id}] mix url:`, url)
             if (!url) { clearImageSize(); return }
             showUrl(url)
           }
         } catch (e) {
-          console.error('[ImmacStyleMixer] Preview update failed', e)
+          console.error(`[ImmacStyleMixer][${node.id}] updatePreview failed`, e)
         }
       }
 
@@ -326,9 +333,14 @@ async function init(): Promise<void> {
       // requestAnimationFrame to defer past the synchronous graph configuration
       // so the canvas render loop is alive when setDirtyCanvas fires.
       node._immacPreviewScheduled = true
+      console.log(`[ImmacStyleMixer][${node.id}] nodeCreated class:${node.comfyClass} widget:${widgetName}`)
       requestAnimationFrame(() => {
-        if (!node._immacPreviewScheduled) return  // loadedGraphNode already handled it
+        if (!node._immacPreviewScheduled) {
+          console.log(`[ImmacStyleMixer][${node.id}] nodeCreated rAF cancelled (loadedGraphNode took over)`)
+          return
+        }
         const w = node.widgets?.find((w: any) => w.name === widgetName)
+        console.log(`[ImmacStyleMixer][${node.id}] nodeCreated rAF firing, w.value:"${w?.value}"`)
         if (w?.value) updatePreview(String(w.value))
       })
     },
@@ -336,15 +348,16 @@ async function init(): Promise<void> {
     loadedGraphNode(node: any) {
       if (typeof node._immacUpdatePreview !== 'function') return
 
-      // Cancel the nodeCreated deferred rAF — we own the restore path here.
       node._immacPreviewScheduled = false
 
       const isPickNode = node.comfyClass === 'StylePickImmacStyleMixer'
       const widgetName = isPickNode ? 'style' : 'mix'
       const comboWidget = node.widgets?.find((w: any) => w.name === widgetName)
       const currentVal = String(comboWidget?.value ?? '')
+      console.log(`[ImmacStyleMixer][${node.id}] loadedGraphNode class:${node.comfyClass} currentVal:"${currentVal}"`)
 
       requestAnimationFrame(() => {
+        console.log(`[ImmacStyleMixer][${node.id}] loadedGraphNode rAF firing, currentVal:"${currentVal}"`)
         if (currentVal === '(no styles saved)' || currentVal === '(no mixes saved)') {
           fetch('/immac_style_mixer/api/data')
             .then((r) => r.json())
