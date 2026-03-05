@@ -24,6 +24,8 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
 
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(mix.name)
+  const [editingMixNegative, setEditingMixNegative] = useState(false)
+  const [mixNegativeInput, setMixNegativeInput] = useState(mix.negative ?? '')
   const [uploading, setUploading] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState(false)
@@ -65,6 +67,11 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
   function commitName() {
     setEditingName(false)
     if (nameInput.trim() !== mix.name) onUpdate({ ...mix, name: nameInput.trim() || mix.name })
+  }
+
+  function commitMixNegative() {
+    setEditingMixNegative(false)
+    if (mixNegativeInput !== (mix.negative ?? '')) onUpdate({ ...mix, negative: mixNegativeInput })
   }
 
   function updateEntry(index: number, patch: Partial<MixEntry>) {
@@ -395,6 +402,31 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
           <option key={s.id} value={s.id}>{s.name}</option>
         ))}
       </select>
+
+      {/* Mix-level negative prompt */}
+      <div style={{ borderTop: '1px solid var(--p-surface-border, #333)', paddingTop: 6 }}>
+        <div style={{ fontSize: 10, color: '#666', marginBottom: 2, userSelect: 'none' }}>mix negative (override / extra)</div>
+        {editingMixNegative ? (
+          <textarea
+            autoFocus
+            value={mixNegativeInput}
+            onChange={(e) => setMixNegativeInput(e.target.value)}
+            onBlur={commitMixNegative}
+            onKeyDown={(e) => { if (e.key === 'Escape') setEditingMixNegative(false) }}
+            rows={2}
+            style={{ ...inputStyle, resize: 'vertical', width: '100%' }}
+            placeholder="optional mix-level negative…"
+          />
+        ) : (
+          <div
+            title="Double-click to edit mix-level negative prompt"
+            onDoubleClick={() => { setMixNegativeInput(mix.negative ?? ''); setEditingMixNegative(true) }}
+            style={{ fontSize: 11, color: '#888', cursor: 'text', wordBreak: 'break-word', minHeight: 24 }}
+          >
+            {mix.negative || <span style={{ color: '#444' }}>double-click to add negative…</span>}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

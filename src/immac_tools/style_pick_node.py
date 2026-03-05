@@ -30,6 +30,7 @@ class PickStyleNode(io.ComfyNode):
                 io.String.Output(display_name="style_name"),
                 io.String.Output(display_name="style_id"),
                 io.String.Output(display_name="style_value"),
+                io.String.Output(display_name="style_negative"),
             ],
         )
 
@@ -46,5 +47,10 @@ class PickStyleNode(io.ComfyNode):
         data = load_data()
         found = next((s for s in data.get("styles", []) if s["name"] == style), None)
         if found is None:
-            return io.NodeOutput(style, "", "")
-        return io.NodeOutput(found["name"], found["id"], found.get("value", "").strip())
+            return io.NodeOutput(style, "", "", "")
+        return io.NodeOutput(
+            found["name"],
+            found["id"],
+            found.get("value", "").strip(),
+            found.get("negative", "").strip(),
+        )

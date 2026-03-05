@@ -4,7 +4,7 @@ import os
 
 from comfy_api.latest import io
 
-from ._style_utils import DATA_FILE_PATH, apply_image, load_data, save_data
+from ._style_utils import DATA_FILE_PATH, apply_image, build_negative, load_data, save_data
 import uuid
 
 _MODE = [
@@ -74,6 +74,7 @@ class SaveStyleNode(io.ComfyNode):
             inputs=[
                 io.String.Input("name", default="", multiline=False, optional=True),
                 io.String.Input("value", default="", multiline=True, optional=True),
+                io.String.Input("negative", default="", multiline=True, optional=True),
                 io.Combo.Input("mode", options=_MODE, default="Save"),
                 io.String.Input("id", optional=True, default="", multiline=False),
                 io.Boolean.Input("favorite", optional=True, default=False),
@@ -82,6 +83,7 @@ class SaveStyleNode(io.ComfyNode):
             outputs=[
                 io.String.Output(display_name="style_id"),
                 io.String.Output(display_name="style_value"),
+                io.String.Output(display_name="style_negative"),
             ],
         )
 
@@ -97,6 +99,7 @@ class SaveStyleNode(io.ComfyNode):
         cls,
         name: str = "",
         value: str = "",
+        negative: str = "",
         mode: str = "Save",
         id: str = "",
         favorite: bool = False,
@@ -104,6 +107,7 @@ class SaveStyleNode(io.ComfyNode):
     ) -> io.NodeOutput:
         name = (name or "").strip()
         value = (value or "").strip()
+        negative = (negative or "").strip()
         style_id = (id or "").strip()
 
         # ── Guard: Create mode must not have an id connected ──────────────────
@@ -150,13 +154,14 @@ class SaveStyleNode(io.ComfyNode):
                 "id": str(uuid.uuid4()),
                 "name": name,
                 "value": value,
+                "negative": negative,
                 "favorite": favorite if favorite is not None else False,
                 "image_filename": None,
             }
             apply_image(new_style, example_image, name, force=False)
             styles.append(new_style)
             save_data(data)
-            return io.NodeOutput(new_style["id"], new_style["value"])
+            return io.NodeOutput(new_style["id"], new_style["value"], new_style["negative"])
 
         # ── Mode: Update ──────────────────────────────────────────────────────
         if mode == "Update":
@@ -169,9 +174,9 @@ class SaveStyleNode(io.ComfyNode):
                     raise RuntimeError(
                         f"[SaveStyleNode] No style named '{name}' was found."
                     )
-            _apply_fields(existing, name, value, favorite, example_image)
+            _apply_fields(existing, name, value, negative, favorite, example_image)
             save_data(data)
-            return io.NodeOutput(existing["id"], existing["value"])
+            return io.NodeOutput(existing["id"], existing["value"], existing.get("negative", ""))
 
         # ── Mode: Save ────────────────────────────────────────────────────────
         # save + id + not found → error (no name to create from)
@@ -182,28 +187,30 @@ class SaveStyleNode(io.ComfyNode):
             )
 
         if existing is not None:
-            _apply_fields(existing, name, value, favorite, example_image)
+            _apply_fields(existing, name, value, negative, favorite, example_image)
             save_data(data)
-            return io.NodeOutput(existing["id"], existing["value"])
+            return io.NodeOutput(existing["id"], existing["value"], existing.get("negative", ""))
         else:
             # save + name + not found → create
             new_style = {
                 "id": str(uuid.uuid4()),
                 "name": name,
                 "value": value,
+                "negative": negative,
                 "favorite": favorite if favorite is not None else False,
                 "image_filename": None,
             }
             apply_image(new_style, example_image, name, force=False)
             styles.append(new_style)
             save_data(data)
-            return io.NodeOutput(new_style["id"], new_style["value"])
+            return io.NodeOutput(new_style["id"], new_style["value"], new_style["negative"])
 
 
 def _apply_fields(
     style: dict,
     name: str,
     value: str,
+    negative: str,
     favorite: bool | None,
     example_image,
 ) -> None:
@@ -212,6 +219,8 @@ def _apply_fields(
         style["name"] = name
     if value:
         style["value"] = value
+    if negative:
+        style["negative"] = negative
     if favorite is not None:
         style["favorite"] = favorite
     apply_image(style, example_image, style.get("name", ""), force=True)

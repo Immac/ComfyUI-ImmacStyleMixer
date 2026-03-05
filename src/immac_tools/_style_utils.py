@@ -69,3 +69,23 @@ def apply_image(style: dict, img: Any | None, style_name: str, force: bool) -> N
         return
     style["image_filename"] = save_image_tensor(img, style_name, existing_filename=existing)
     style["image_updated_at"] = int(time.time())
+
+
+def build_negative(entries: list[dict], styles_by_id: dict) -> str:
+    """Assemble a negative prompt from mix entries using the same weighted logic as _build_prompt."""
+    parts: list[str] = []
+    for e in entries:
+        style = styles_by_id.get(e.get("style_id", ""))
+        if style is None:
+            continue
+        negative = style.get("negative", "").strip()
+        if not negative:
+            continue
+        weight = float(e.get("weight", 1.0))
+        if weight < 1e-9:
+            continue
+        if abs(weight - 1.0) < 1e-6:
+            parts.append(negative)
+        else:
+            parts.append(f"({negative}:{weight:.2f})")
+    return ", ".join(parts)

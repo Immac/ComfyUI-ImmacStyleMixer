@@ -17,8 +17,10 @@ interface Props {
 export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onAddToMix, onRemoveFromMix, isDirty, onRefreshCache }: Props) {
   const [editingName, setEditingName] = useState(false)
   const [editingValue, setEditingValue] = useState(false)
+  const [editingNegative, setEditingNegative] = useState(false)
   const [nameInput, setNameInput] = useState(style.name)
   const [valueInput, setValueInput] = useState(style.value)
+  const [negativeInput, setNegativeInput] = useState(style.negative ?? '')
   const [uploading, setUploading] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState(false)
@@ -44,6 +46,11 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
   function commitValue() {
     setEditingValue(false)
     if (valueInput !== style.value) onUpdate({ ...style, value: valueInput })
+  }
+
+  function commitNegative() {
+    setEditingNegative(false)
+    if (negativeInput !== (style.negative ?? '')) onUpdate({ ...style, negative: negativeInput })
   }
 
   async function handleImageDrop(file: File) {
@@ -315,6 +322,31 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
           {style.value || <span style={{ color: '#555' }}>double-click to add prompt…</span>}
         </div>
       )}
+
+      {/* Negative prompt */}
+      <div style={{ borderTop: '1px solid var(--p-surface-border, #333)', paddingTop: 4, marginTop: 2 }}>
+        <div style={{ fontSize: 10, color: '#666', marginBottom: 2, userSelect: 'none' }}>negative</div>
+        {editingNegative ? (
+          <textarea
+            autoFocus
+            value={negativeInput}
+            onChange={(e) => setNegativeInput(e.target.value)}
+            onBlur={commitNegative}
+            onKeyDown={(e) => { if (e.key === 'Escape') setEditingNegative(false) }}
+            rows={2}
+            style={{ ...inputStyle, resize: 'vertical' }}
+            placeholder="optional negative prompt…"
+          />
+        ) : (
+          <div
+            title="Double-click to edit negative prompt"
+            onDoubleClick={() => { setNegativeInput(style.negative ?? ''); setEditingNegative(true) }}
+            style={{ fontSize: 11, color: '#888', cursor: 'text', wordBreak: 'break-word', minHeight: 24 }}
+          >
+            {style.negative || <span style={{ color: '#444' }}>double-click to add negative…</span>}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

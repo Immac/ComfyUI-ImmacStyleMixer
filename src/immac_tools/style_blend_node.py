@@ -5,7 +5,7 @@ import os
 
 from comfy_api.latest import io
 
-from ._style_utils import DATA_FILE_PATH, load_data
+from ._style_utils import DATA_FILE_PATH, load_data, build_negative
 
 _ON_DUPLICATE = [
     "Skip (keep first)",
@@ -74,6 +74,7 @@ class BlendStyleNode(io.ComfyNode):
             outputs=[
                 io.String.Output(display_name="blend_json"),
                 io.String.Output(display_name="prompt"),
+                io.String.Output(display_name="negative"),
             ],
         )
 
@@ -118,8 +119,9 @@ class BlendStyleNode(io.ComfyNode):
         data = load_data()
         styles_by_id = {s["id"]: s for s in data.get("styles", [])}
         prompt = _build_prompt(merged, styles_by_id)
+        negative = build_negative(merged, styles_by_id)
 
-        return io.NodeOutput(blend_json, prompt)
+        return io.NodeOutput(blend_json, prompt, negative)
 
 
 # ---------------------------------------------------------------------------

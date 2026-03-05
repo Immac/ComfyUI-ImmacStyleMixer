@@ -2,6 +2,7 @@ export interface Style {
   id: string
   name: string
   value: string
+  negative?: string
   favorite: boolean
   image_filename: string | null
   image_updated_at?: number
@@ -16,6 +17,7 @@ export interface MixEntry {
 export interface Mix {
   id: string
   name: string
+  negative?: string
   favorite: boolean
   image_filename: string | null
   image_updated_at?: number
