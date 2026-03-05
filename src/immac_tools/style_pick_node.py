@@ -1,4 +1,4 @@
-"""StylePickNode — picks a saved style and outputs its name, id, and value."""
+"""PickStyleNode — picks a saved style and outputs its name, id, and value."""
 
 import os
 
@@ -13,14 +13,14 @@ def _style_names() -> list[str]:
     return names if names else ["(no styles saved)"]
 
 
-class StylePickNode(io.ComfyNode):
+class PickStyleNode(io.ComfyNode):
     """Picks a saved style and outputs its name, id, and prompt value."""
 
     @classmethod
     def define_schema(cls) -> io.Schema:
         return io.Schema(
-            node_id="StylePickImmacStyleMixer",
-            display_name="Style Pick",
+            node_id="PickStyleImmacStyleMixer",
+            display_name="Pick Style",
             category="Immac/Style Mixer",
             description="Picks a saved style and outputs its name, id, and prompt value.",
             inputs=[

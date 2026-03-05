@@ -76,7 +76,7 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
       if (document.elementFromPoint(e.clientX, e.clientY) !== canvasEl) return
       const pos: [number, number] = lgCanvas.convertEventToCanvasOffset(e)
       const LG = (window as any).LiteGraph
-      const node = LG?.createNode('StylePickImmacStyleMixer')
+      const node = LG?.createNode('PickStyleImmacStyleMixer')
       if (!node) return
       node.pos = pos
       ;(window as any).app?.graph?.add(node)

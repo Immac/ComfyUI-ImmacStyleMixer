@@ -1,4 +1,4 @@
-"""StyleBlendNode — aggregates weighted style_entry slots into a blend JSON + prompt."""
+"""BlendStyleNode — aggregates weighted style_entry slots into a blend JSON + prompt."""
 
 import json
 import os
@@ -22,7 +22,7 @@ _WEIGHT_MODE = [
 ]
 
 
-class StyleBlendNode(io.ComfyNode):
+class BlendStyleNode(io.ComfyNode):
     """Aggregates style_entry inputs (from Weight Style nodes) into a blend.
 
     Each slot accepts a style_entry JSON string produced by the Weight Style node.
@@ -50,8 +50,8 @@ class StyleBlendNode(io.ComfyNode):
             max=16,
         )
         return io.Schema(
-            node_id="StyleBlendImmacStyleMixer",
-            display_name="Style Blend",
+            node_id="BlendStyleImmacStyleMixer",
+            display_name="Blend Style",
             category="Immac/Style Mixer",
             description=(
                 "Aggregates weighted style_entry inputs (from Weight Style nodes) "

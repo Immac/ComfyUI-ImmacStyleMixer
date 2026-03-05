@@ -168,11 +168,11 @@ async function init(): Promise<void> {
     nodeCreated(node: any) {
       if (
         node.comfyClass !== 'PickMixImmacStyleMixer' &&
-        node.comfyClass !== 'StylePickImmacStyleMixer'
+        node.comfyClass !== 'PickStyleImmacStyleMixer'
       ) return
 
-      // ── shared DOM preview widget ────────────────────────────────────────
-      const isPickNode = node.comfyClass === 'StylePickImmacStyleMixer'
+      // ── shared DOM preview widget ────────────────────────────────────────────────────────────────────
+      const isPickNode = node.comfyClass === 'PickStyleImmacStyleMixer'
       const widgetName = isPickNode ? 'style' : 'mix'
 
       const comboWidget = node.widgets?.find((w: any) => w.name === widgetName)
@@ -289,7 +289,7 @@ async function init(): Promise<void> {
 
       node._immacPreviewScheduled = false
 
-      const isPickNode = node.comfyClass === 'StylePickImmacStyleMixer'
+      const isPickNode = node.comfyClass === 'PickStyleImmacStyleMixer'
       const widgetName = isPickNode ? 'style' : 'mix'
       const comboWidget = node.widgets?.find((w: any) => w.name === widgetName)
       const currentVal = String(comboWidget?.value ?? '')
@@ -321,7 +321,7 @@ async function init(): Promise<void> {
   // We listen on `execution_success` (fires once per completed queue item)
   // via the directly-imported `api` singleton. Any run could have updated an
   // image_filename via SaveMix / CreateStyle / ModifyStyle, so we refresh all
-  // PickMix and StylePick node previews. The image_updated_at cache-buster
+  // PickMix and Pick Style node previews. The image_updated_at cache-buster
   // ensures the browser fetches the new file only when it actually changed.
   function refreshAllPreviews() {
     const nodes: any[] = (app as any).graph?._nodes ?? []
