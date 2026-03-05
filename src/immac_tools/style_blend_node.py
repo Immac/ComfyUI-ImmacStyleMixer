@@ -99,12 +99,16 @@ class StyleBlendNode(io.ComfyNode):
                 continue
             try:
                 entry = json.loads(text)
-            except json.JSONDecodeError:
-                continue
-            style_id = entry.get("style_id", "").strip()
+                style_id = entry.get("style_id", "").strip()
+                weight = float(entry.get("weight", 1.0))
+            except (json.JSONDecodeError, AttributeError):
+                # Not a style_entry JSON — treat as a raw style_id (e.g. direct
+                # connection from Style Pick) with a default weight of 1.0.
+                style_id = text
+                weight = 1.0
             if not style_id:
                 continue
-            raw.append({"style_id": style_id, "weight": float(entry.get("weight", 1.0))})
+            raw.append({"style_id": style_id, "weight": weight})
 
         merged = _deduplicate(raw, on_duplicate)
         merged = _apply_weight_mode(merged, weight_mode)
