@@ -61,7 +61,7 @@ class StyleWeightNode(io.ComfyNode):
         style = next((s for s in data.get("styles", []) if s["id"] == style_id), None)
         value = (style.get("value", "") if style else "").strip()
 
-        if not value:
+        if not value or weight < 1e-9:
             weighted_value = ""
         elif abs(weight - 1.0) < 1e-6:
             weighted_value = value

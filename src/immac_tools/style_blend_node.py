@@ -202,6 +202,8 @@ def _build_prompt(entries: list[dict], styles_by_id: dict) -> str:
         if not value:
             continue
         weight = e["weight"]
+        if weight < 1e-9:
+            continue
         if abs(weight - 1.0) < 1e-6:
             parts.append(value)
         else:

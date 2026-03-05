@@ -34,8 +34,13 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
 
   function copyPrompt() {
     const parts = mix.styles
-      .filter((e) => e.enabled)
-      .map((e) => styles.find((s) => s.id === e.style_id)?.value ?? '')
+      .filter((e) => e.enabled && (e.weight ?? 1.0) > 1e-9)
+      .map((e) => {
+        const value = styles.find((s) => s.id === e.style_id)?.value ?? ''
+        if (!value) return ''
+        const w = e.weight ?? 1.0
+        return Math.abs(w - 1.0) < 1e-6 ? value : `(${value}:${w.toFixed(2)})`
+      })
       .filter(Boolean)
     if (parts.length === 0) return
     navigator.clipboard.writeText(parts.join(', ')).then(() => {

@@ -42,6 +42,8 @@ def _resolve_mix(mix_name: str) -> tuple[str, str]:
         if not value:
             continue
         weight: float = float(entry.get("weight", 1.0))
+        if weight < 1e-9:
+            continue
         if abs(weight - 1.0) < 1e-6:
             parts.append(value)
         else:
