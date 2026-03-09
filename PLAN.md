@@ -1,112 +1,153 @@
-# Migration Plan: Comfy-Org/ComfyUI-React-Extension-Template
+# Style Mixer — Project Plan & Dev Notes
 
-Repo is being updated to match the `Comfy-Org/ComfyUI-React-Extension-Template` pattern,
-adding a React/TypeScript Style Mixer UI alongside the existing custom nodes.
+ComfyUI custom-node extension with a React/TypeScript sidebar panel.
+Follows the `Comfy-Org/ComfyUI-React-Extension-Template` pattern.
 
 ---
 
-## Steps
+## Implementation Status
 
-### ✅ Step 0 — Save this plan (first order of business)
+### ✅ Step 1 — Python layer cleanup
+- [x] Deleted broken tests (used old-style class attributes incompatible with `io.ComfyNode`)
+- [x] Removed dead dict registration from `src/immac_tools/__init__.py`
+- [x] Removed unused `ExampleForwardingExtension` from `forwarding_nodes.py`
 
-### ✅ Step 1 — Clean up the Python layer
-- [x] Save plan to `PLAN.md`
-- [x] Delete broken tests (`tests/test_immac_tools.py` — asserts old-style class attributes that don't exist on `io.ComfyNode`)
-- [x] Remove dead dict registration from `src/immac_tools/__init__.py` (`NODE_CLASS_MAPPINGS`, `NODE_DISPLAY_NAME_MAPPINGS`, `WEB_DIRECTORY`)
-- [x] Remove unused `ExampleForwardingExtension` from `src/immac_tools/forwarding_nodes.py`
+### ✅ Step 2 — Root `__init__.py`
+- [x] `NODE_CLASS_MAPPINGS` + `NODE_DISPLAY_NAME_MAPPINGS` (required by ComfyUI core and Manager)
+- [x] `comfy_entrypoint` wired to `src/immac_tools/` (forward-compat)
+- [x] aiohttp static routes serve `dist/immac_style_mixer/` at `/immac_style_mixer/`
+- [x] `nodes.EXTENSION_WEB_DIRS[project_name]` registered via `comfy_config` (with fallback)
 
-### ✅ Step 2 — Rewrite root `__init__.py` to match the template pattern
-- [x] Restore `NODE_CLASS_MAPPINGS` + `NODE_DISPLAY_NAME_MAPPINGS` (required by ComfyUI core and Manager; `comfy_entrypoint` alone doesn't surface nodes universally yet)
-- [x] Wire `comfy_entrypoint` to `src/immac_tools/nodes.py` (forward-compat)
-- [x] Register aiohttp static routes to serve `dist/immac_style_mixer/` at `/immac_style_mixer/`
-- [x] Register `nodes.EXTENSION_WEB_DIRS[project_name]` using `comfy_config` (with fallback)
-
-### ✅ Step 3 — Add Style Mixer REST API (`src/immac_tools/api.py`)
+### ✅ Step 3 — REST API (`src/immac_tools/api.py`)
 - [x] `style_mixer_data.json` load/save helpers
 - [x] `GET  /immac_style_mixer/api/data`
-- [x] `POST /immac_style_mixer/api/data` (with basic structural validation)
+- [x] `POST /immac_style_mixer/api/data` (with structural validation)
+- [x] `GET  /immac_style_mixer/api/backup` — download ZIP with images
+- [x] `POST /immac_style_mixer/api/restore` — restore from JSON or ZIP (auto-detected server-side)
 - [x] Routes wired into root `__init__.py` via `register_routes()`
 - [x] Images handled by ComfyUI built-ins (`/upload/image` + `/view`)
 
-### ✅ Step 4 — Update `pyproject.toml`
-- [x] Change `includes = []` → `includes = ["dist/"]`
-- [x] Remove `[build-system]` / `[tool.setuptools]` blocks
+### ✅ Step 4 — `pyproject.toml`
+- [x] `includes = ["dist/"]`
+- [x] Removed `[build-system]` / `[tool.setuptools]` blocks
+- [x] Metadata updated (`immac_tools.json`)
 
-### ✅ Step 5 — Scaffold `ui/` (React + TypeScript + Vite)
-- [x] `ui/package.json`
-- [x] `ui/vite.config.ts` — output → `../dist/immac_style_mixer/`
+### ✅ Step 5 — UI scaffold (`ui/`)
+- [x] `ui/package.json`, `ui/vite.config.ts` (output → `../dist/immac_style_mixer/`)
 - [x] `ui/tsconfig.json` + `ui/tsconfig.node.json`
 - [x] `ui/src/main.tsx` — registers ComfyUI sidebar tab `immac-style-mixer`
-- [x] `ui/src/components/StyleMixerPanel.tsx` — placeholder
-- [x] Build verified (`npm run build` ✔)
+- [x] Build verified (`npm run build` from `ui/` ✔)
 
-### ✅ Step 6 — Build UI components
+### ✅ Step 6 — UI components
 - [x] `types.ts` — `Style`, `Mix`, `MixEntry`, `StyleMixerData`
 - [x] `hooks/useStyleMixerData.ts` — fetch/save via API; `uploadStyleImage()` + `styleImageUrl()` helpers
-- [x] `components/StyleCard.tsx` — image upload (drag&drop/picker), editable name & prompt, favorite star, delete
-- [x] `components/MixCard.tsx` — name, radio to activate, style entries (ON/OFF + weight + remove), add-style dropdown, favorite star
-- [x] `components/StyleGallery.tsx` — sorted grid (favorites first), inline "Add" form
+- [x] `components/StyleCard.tsx` — image upload (drag&drop/picker), editable name & prompt, optional negative prompt, favorite star, delete
+- [x] `components/MixCard.tsx` — name, click to activate, style entries (ON/OFF + weight bar + remove), add-style dropdown, favorite star
+- [x] `components/StyleGallery.tsx` — auto-fill grid (favorites first), inline "Add" form
 - [x] `components/StyleMixerPanel.tsx` — Current Mix / Mixes / Styles sections wired to data hook
-- [x] Build verified (`tsc && vite build` ✔)
+- [x] `components/BarInput.tsx` — draggable weight slider (ComfyUI style), drag range 0–1, typed range −10–10
+- [x] `components/ImageLightbox.tsx` — full-size image overlay on magnify button click
 
-### ✅ Step 7 — Documentation and license
-- [x] Rewrite `README.md` to accurately describe the Style Mixer (nodes, sidebar, dev build)
-- [x] Update `PLAN.md` to reflect completed features
-- [x] Verify `LICENSE` (MIT, 2026)
+### ✅ Step 7 — Python nodes (V3 API)
+- [x] All nodes migrated to V3 API (`comfy_api.latest.io`)
+- [x] **Pick Style** (`style_pick_node.py`) — combo of style names; image preview widget on canvas
+- [x] **Pick Mix** (`style_mix_node.py`) — combo of mix names; `mix_id` output; canvas image preview (DOM widget); preview updates on widget change without execution
+- [x] **Blend Style** (`style_blend_node.py`) — `io.Autogrow` growing slots; accepts raw `style_id` (no weight node) with default weight 1.0; skips zero-weight styles
+- [x] **Weight Style** (`style_weight_node.py`) — wraps a `style_id` with a float weight
+- [x] **Save Mix** (`save_mix_node.py`) — saves current mix state; optional `example_image` + `mix_id` inputs
+- [x] **Save Style** (`save_style_node.py`) — Create / Create or Skip / Create or Update / Overwrite modes; optional `example_image` input; `OUTPUT_NODE = True`; updates `image_updated_at` for cache-busting
+- [x] `IS_CHANGED` uses data file mtime to bust node cache on sidebar saves
+- [x] Node display names are verb-first: Pick Style, Blend Style, etc.
+
+### ✅ Step 8 — Canvas integration
+- [x] Drag style card onto canvas → creates a Pick Style node set to that style (`onDragEnd` pattern; ComfyUI intercepts the native `drop` event)
+- [x] Drag mix card onto canvas → creates a Pick Mix node
+- [x] `loadedGraphNode` hook upgrades placeholder nodes on workflow reload
+- [x] `scheduleCanvasDirty`: 10 rAF frames after node creation to force canvas redraw on page reload (avoids race with LiteGraph render loop)
+- [x] Node combos refresh via `refreshComboInNodes` 1500 ms after sidebar saves (add/delete only; weight/toggle changes are silent)
+
+### ✅ Step 9 — Execution feedback
+- [x] `execution_success` event → refreshes all node previews (`_immacUpdatePreview`)
+- [x] `execution_success` event → dispatches `immac:execution_success` custom window event → re-fetches sidebar data so images update automatically without page reload
+- [x] `image_updated_at` timestamps in `style_mixer_data.json` flow through to `styleImageUrl`/`mixImageUrl` cache-busters
+
+### ✅ Step 10 — Backup / Restore
+- [x] Moved to ComfyUI Settings panel (registered via `settings[]` in `registerExtension`)
+- [x] **Download ZIP** — server-side endpoint bundles `style_mixer_data.json` + all referenced images
+- [x] **Restore** — auto-detects JSON vs ZIP; ZIP restore extracts images server-side; shows real server error on failure
+
+### ✅ Step 11 — Negative prompts
+- [x] `negative_prompt` field on `Style` and `Mix` types
+- [x] Pick Style node exposes `negative_prompt` output
+- [x] Skip zero-weight styles from blended prompt output
+
+### ✅ Step 12 — Documentation & packaging
+- [x] `README.md` rewritten (nodes, sidebar, dev build)
+- [x] `LICENSE` (MIT, 2026)
+- [x] Example workflow moved to `examples/` (ComfyUI template discovery)
+- [x] `style_mixer_data.json.example` added; actual data file removed from tracking
+- [x] `dist/` tracked in git (required for registry publishing)
 
 ---
 
-## Post-plan features (completed)
+## UI Polish (all done)
 
-These features were implemented after the core plan was done:
-
-### UI polish
-- [x] Auto-fill CSS grid layout — styles: `minmax(180px, 1fr)`, mixes: `minmax(280px, 1fr)`
-- [x] Click card to select mix (removed radio button)
+- [x] Auto-fill CSS grid — styles: `minmax(180px, 1fr)`, mixes: `minmax(280px, 1fr)`
+- [x] Click card to select mix (no radio button)
 - [x] Magnify button on style thumbnail hover; `scale-105` CSS transition
 - [x] Full-size image lightbox (`ImageLightbox.tsx`)
 - [x] Copy prompt button on style and mix cards (clipboard API)
-- [x] Draggable bar input for style weights (`BarInput.tsx`) — matches ComfyUI slider feel
-- [x] Delete confirmation shown as centered card overlay (`overflow: hidden` clipping)
-- [x] Overlay shows actual style/mix name in delete prompt
-
-### Canvas integration
-- [x] Drag a style card onto the canvas → creates a `StylePickImmacStyleMixer` node set to that style (uses `onDragEnd` pattern; ComfyUI intercepts the `drop` event itself)
-- [x] Style Mix node shows a thumbnail preview of the selected mix's cover image (or first enabled style fallback)
-  - DOM widget (`addDOMWidget`) renders immediately on node creation — not subject to deprecated `node.imgs` / `setSizeForImage`
-  - `mixWidget.callback` wrapping is the correct hook (fires on arrows, context menu, programmatic calls)
-  - `scheduleCanvasDirty`: 10 rAF frames after node creation to force the canvas to redraw and show the preview on page reload
+- [x] Draggable bar input for weights (`BarInput.tsx`)
+- [x] Delete confirmation as centered card overlay (`overflow: hidden` clipping); shows actual name
+- [x] On/off toggle and weight bar in Current Mix section
+- [x] Double-click current mix chip to toggle on/off
+- [x] Remove button on current mix style chips
+- [x] Drag style cards onto mix cards or Current Mix to add them
+- [x] Toggle add/remove from mix button on style cards
+- [x] Mixes section scrolls horizontally when cards overflow
+- [x] Toast warning on delete; dirty badge on add/delete; auto-refresh on delete
+- [x] `object-fit: contain` (padded) for all card and mix thumbnails
+- [x] Fill-bar loading animation while sidebar data fetches
 
 ---
 
 ## Key Decisions
-- Single `POST /immac_style_mixer/api/data` endpoint for all persistence (minimal backend; expand later)
+
+- Single `POST /immac_style_mixer/api/data` endpoint for all persistence (minimal backend)
 - Sidebar tab (not floating window) for the panel
 - `dist/` tracked in git — required for registry publishing via `includes = ["dist/"]`
-- Styles are user-defined strings (prompt text snippets)
+- Styles are user-defined prompt text snippets (no fixed schema)
+- Weight drag range 0–1, typed range −10–10 (separate `dragMin`/`dragMax`)
 
 ---
 
 ## Dev Notes
 
+### Build
+
+`package.json` is in `ui/`, not the repo root. Always build from there:
+```sh
+cd /path/to/Immac_Style_Mixer/ui && npm run build
+# or as a one-liner from any directory:
+bash -c 'cd /path/to/.../ui && npm run build'
+```
+
+---
+
 ### Accessing the `api` singleton
 
-- **Do NOT** use `(app as any).api` — it is `undefined` in the newer ComfyUI Vue frontend.
-- **Always** import it directly:
-  ```ts
-  // @ts-ignore
-  import { api } from '/scripts/api.js'
-  ```
-- Declare the module type in `comfy.d.ts`:
-  ```ts
-  declare module '/scripts/api.js' {
-    export const api: { addEventListener: (event: string, cb: (...args: any[]) => void) => void }
-  }
-  ```
-- Add it to Vite's externals in `vite.config.ts`:
-  ```ts
-  rollupOptions: { external: ['/scripts/app.js', '/scripts/api.js'] }
-  ```
+**Do NOT** use `(app as any).api` — it is `undefined` in the newer ComfyUI Vue frontend.
+Always import directly:
+```ts
+// @ts-ignore
+import { api } from '/scripts/api.js'
+import { app } from '/scripts/app.js'
+```
+
+Declare types in `comfy.d.ts` and add to Vite externals in `vite.config.ts`:
+```ts
+rollupOptions: { external: ['/scripts/app.js', '/scripts/api.js'] }
+```
 
 ---
 
@@ -114,7 +155,7 @@ These features were implemented after the core plan was done:
 
 | Event | Fires | Use for |
 |---|---|---|
-| `executed` | Once per node that produced output | Fine-grained per-node logic (requires `comfyClass` filtering) |
+| `executed` | Once per node that produced output | Fine-grained per-node logic (filter by `comfyClass`) |
 | `execution_success` | Once per completed queue item | "Anything finished — refresh everything" |
 
 For simple global refresh, prefer `execution_success`.
@@ -123,7 +164,6 @@ For simple global refresh, prefer `execution_success`.
 
 ### Refreshing node previews after execution
 
-Listen on `execution_success` and call `_immacUpdatePreview()` on every node that has it:
 ```ts
 api.addEventListener('execution_success', () => {
   const nodes: any[] = (app as any).graph?._nodes ?? []
@@ -135,19 +175,16 @@ api.addEventListener('execution_success', () => {
 
 ---
 
-### Refreshing React sidebar panel data after execution
+### Refreshing sidebar panel data after execution
 
-The panel mounts once and its `useStyleMixerData` hook fetches data once on mount. To keep sidebar images up to date after a workflow runs:
-
-1. In `main.tsx`, dispatch a `CustomEvent` alongside the canvas refresh:
+1. `main.tsx` dispatches a custom event alongside canvas refresh:
    ```ts
    api.addEventListener('execution_success', () => {
      refreshAllPreviews()
      window.dispatchEvent(new CustomEvent('immac:execution_success'))
    })
    ```
-
-2. In `useStyleMixerData`, listen for it and re-fetch:
+2. `useStyleMixerData` listens and re-fetches:
    ```ts
    useEffect(() => {
      const handler = () => { fetchData().catch(() => {}) }
@@ -156,42 +193,41 @@ The panel mounts once and its `useStyleMixerData` hook fetches data once on moun
    }, [fetchData])
    ```
 
-This keeps the panel's `image_updated_at` timestamps fresh, which flows through to `styleImageUrl`/`mixImageUrl` cache-busters so images reload automatically without a full page refresh.
-
 ---
 
 ### Canvas / LiteGraph timing on page load
 
-Node preview images (`_immacUpdatePreview`) must not be called before LiteGraph's render loop is running — the image widget silently fails otherwise.
+Node preview images must not be set before LiteGraph's render loop is running.
 
 **What didn't work:**
-- Calling immediately in `loadedGraphNode` → canvas loop not started yet
-- A fixed `setTimeout(500ms)` → too fragile, can still be too early
-- `requestAnimationFrame` waiting for `LiteGraph.use_deferred_text_metrics` → property unavailable in ComfyUI's LiteGraph build
+- Calling `_immacUpdatePreview` immediately in `loadedGraphNode` → loop not started yet
+- `setTimeout(500ms)` → fragile, still sometimes too early
+- rAF polling for `LiteGraph.use_deferred_text_metrics` → property unavailable in ComfyUI's build
+- `Object.defineProperty` on `widget.value` → misses internal ComboWidget private field writes (arrow navigation)
 
 **What works:**
-- Schedule `setDirtyCanvas(true)` across ~10 consecutive `requestAnimationFrame` calls. By that point the canvas loop has started and the widget renders correctly:
-  ```ts
-  function scheduleCanvasDirty(node: any, frames = 10) {
-    let count = 0
-    function tick() {
-      node.setDirtyCanvas?.(true, true)
-      if (++count < frames) requestAnimationFrame(tick)
-    }
-    requestAnimationFrame(tick)
+```ts
+function scheduleCanvasDirty(node: any, frames = 10) {
+  let count = 0
+  function tick() {
+    node.setDirtyCanvas?.(true, true)
+    if (++count < frames) requestAnimationFrame(tick)
   }
-  ```
+  requestAnimationFrame(tick)
+}
+```
+10 consecutive rAF calls guarantees the render loop is running and the DOM widget image renders correctly.
 
 ---
 
 ### ComfyUI node preview image pattern
 
-Each PickMix/StylePick node gets an `_immacUpdatePreview(value?)` method attached in `nodeCreated`. It:
+Each Pick Mix / Pick Style node gets `_immacUpdatePreview(value?)` attached in `nodeCreated`. It:
 1. Fetches fresh data from `/immac_style_mixer/api/data`
 2. Finds the matching style/mix by name
-3. Calls `node.imgs = [img]` + `scheduleCanvasDirty` to display it on the canvas
+3. Sets `node.imgs = [img]` + calls `scheduleCanvasDirty`
 
-Cache-busting is done via `image_updated_at` timestamps stored in `style_mixer_data.json` and updated any time a node saves a new image file.
+Cache-busting via `image_updated_at` timestamps stored in `style_mixer_data.json`, updated whenever a node saves a new image file.
 
 ---
 
@@ -199,39 +235,42 @@ Cache-busting is done via `image_updated_at` timestamps stored in `style_mixer_d
 
 **Goal:** show the selected mix's cover image (or a style fallback) in the node body when the `mix` combo widget changes, without triggering execution.
 
-**What doesn't work in the current ComfyUI frontend:**
-
-- `node.imgs` + `setSizeForImage()` — deprecated. Setting `node.imgs` has no visible effect unless a `$$canvas-image-preview` DOM widget is already present on the node, which only happens after the node executes at least once (via `onExecuted`). `setSizeForImage` is explicitly `@deprecated` in the frontend's type definitions.
-- `Object.defineProperty` on `widget.value` — the `ComboWidget` class stores its value in a private field. Shadowing `.value` on the instance intercepts external assignments but misses internal stepped-widget logic that writes to the private field directly (e.g. arrow button navigation).
+**What doesn't work:**
+- `node.imgs` + `setSizeForImage()` — deprecated; no visible effect unless `$$canvas-image-preview` DOM widget already exists (only after `onExecuted`)
+- `Object.defineProperty` on `widget.value` — misses internal ComboWidget private field writes (arrow buttons)
 
 **What works:**
-
-- `node.addDOMWidget(...)` injects a real `<img>` HTML element into the node body. It renders immediately on node creation, is fully controlled by us, and isn't subject to any of the deprecation or class-internals issues.
-- `mixWidget.callback` wrapping is the correct hook for value changes — ComfyUI calls it reliably on all interaction paths (arrows, context menu, programmatic `widget.callback?.(value)` calls). `widget.value` is already updated by the time callback fires.
+- `node.addDOMWidget(...)` injects a real `<img>` into the node body — renders immediately, fully controlled, not subject to deprecation issues
+- `mixWidget.callback` wrapping is the correct hook — fires reliably on all interaction paths (arrows, context menu, programmatic calls), with `widget.value` already updated
 
 **Implementation** (`ui/src/main.tsx`, `nodeCreated` hook):
-1. Create a `<div><img></div>` DOM widget on the node (`serialize: false`).
-2. Wrap `mixWidget.callback` to call `updatePreview(mixWidget.value)`.
-3. `updatePreview` fetches `/immac_style_mixer/api/data`, finds the mix, resolves the image URL (mix cover → first enabled style thumbnail → nothing), and sets `imgEl.src`. The `<img>` is hidden until loaded.
-4. `scheduleCanvasDirty` fires `setDirtyCanvas(true, true)` across 10 rAF frames after node creation so the preview appears on page reload without a hard race condition against the LiteGraph render loop.
+1. Create a `<div><img></div>` DOM widget on the node (`serialize: false`)
+2. Wrap `mixWidget.callback` → call `updatePreview(mixWidget.value)`
+3. `updatePreview` fetches data, finds the mix, resolves image URL (mix cover → first enabled style → nothing), sets `imgEl.src`
+4. `scheduleCanvasDirty` fires across 10 rAF frames after node creation
 
 ---
 
-### npm / build directory
+### Style drag to canvas
 
-- The `package.json` is in `ui/`, not the repo root.
-- Always run builds from `ui/`:
-  ```sh
-  cd /path/to/Immac_Style_Mixer/ui && npm run build
-  ```
-  or use an absolute path in one command:
-  ```sh
-  bash -c 'cd /path/to/.../ui && npm run build'
-  ```
+ComfyUI intercepts the native `drop` event on the canvas. Use the `onDragEnd` pattern instead:
+```ts
+card.addEventListener('dragend', (e) => {
+  // use e.clientX / e.clientY to find drop position
+  // call app.graph.createNode(...) and position it
+})
+```
 
 ---
 
 ### `comfy_api` Python package
 
-- The `comfy_api` package (`comfy_api.latest.io`, etc.) is **not on PyPI** — it ships as part of ComfyUI itself and is only importable at runtime inside a running ComfyUI process.
-- Tests that import it require either mocking or running inside ComfyUI's environment.
+The `comfy_api` package (`comfy_api.latest.io`, etc.) is **not on PyPI** — it ships inside ComfyUI itself and is only importable at runtime inside a running ComfyUI process. Tests that import it require mocking or running inside ComfyUI's environment.
+
+---
+
+### Node combo refresh strategy
+
+- **Add or delete** a style or mix → call `app.refreshComboInNodes()` after 1500 ms (debounced)
+- **Weight change / enabled toggle / current_mix_id change** → silent save, no combo refresh
+- This avoids disruptive node widget resets during normal slider interaction
