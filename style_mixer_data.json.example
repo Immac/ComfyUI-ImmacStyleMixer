@@ -1,0 +1,170 @@
+{
+  "styles": [
+    {
+      "id": "d5407894-81e2-4d34-bef4-539df0bd06da",
+      "name": "Dairi",
+      "value": "@dairi",
+      "favorite": false,
+      "image_filename": "style_Dairi_0622ed8f.png",
+      "image_updated_at": 1772505672
+    },
+    {
+      "id": "bf2f02fa-2236-4864-9060-629650a838fb",
+      "name": "Kou Hiyoyo",
+      "value": "@kou hiyoyo",
+      "favorite": false,
+      "image_filename": "style_Kou_Hiyoyo_064d4b7a.png",
+      "image_updated_at": 1772505708
+    },
+    {
+      "id": "f1efdc2b-c0bc-4731-8699-92b41ccdb728",
+      "name": "Monochrome",
+      "value": "monochrome",
+      "favorite": false,
+      "image_filename": "style_Monochrome_dec5c43e.png",
+      "image_updated_at": 1772547268
+    },
+    {
+      "id": "151a5ecc-4345-499d-a646-3cd34415af39",
+      "name": "Eiichirou Oda",
+      "value": "@oda eiichirou",
+      "favorite": true,
+      "image_filename": "style_Eiichirou_Oda_bcee0e1b.png",
+      "image_updated_at": 1772685098
+    },
+    {
+      "id": "18b2e9f5-c8ea-46fa-9ba8-0ee53e0cdf3a",
+      "name": "Akira Toriyama",
+      "value": "@toriyama akira",
+      "favorite": true,
+      "image_filename": "style_Akira_Toriyama_5771137b.png",
+      "image_updated_at": 1772682410
+    },
+    {
+      "id": "e6275561-59ce-45d5-b3d8-0c7beed847aa",
+      "name": "Sugimori Ken",
+      "value": "@sugimori ken",
+      "favorite": true,
+      "image_filename": "style_Sugimori_Ken_f8a8f1cf.png",
+      "image_updated_at": 1772683005
+    },
+    {
+      "id": "fe03fa07-7d0d-4be4-b974-a026d44ed884",
+      "name": "Denaseey",
+      "value": "@denaseey",
+      "favorite": true,
+      "image_filename": "style_Denaseey_de7a8c4e.png",
+      "image_updated_at": 1772683723
+    },
+    {
+      "id": "c76bddd9-93f6-4af9-aabf-3ae6e775f187",
+      "name": "Mage / Harumagedon",
+      "value": "@mage \\(harumagedon\\)",
+      "favorite": true,
+      "image_filename": "style_Mage___Harumagedon_26428c90.png",
+      "image_updated_at": 1772685098
+    },
+    {
+      "id": "1dadd7c3-120d-4a55-a26d-ef1d1261d2f0",
+      "name": "MageOda",
+      "value": "(@mage \\(harumagedon\\):0.75), @oda eiichirou",
+      "favorite": false,
+      "image_filename": "style_MageOda_bec35eeb.png",
+      "image_updated_at": 1772686371
+    },
+    {
+      "id": "e97dafd3-f1ec-4643-8f3f-ac2da50e9a78",
+      "name": "Keving Arthur",
+      "value": "@kevin arthur",
+      "favorite": false,
+      "image_filename": "ComfyUI_00193_.png",
+      "image_updated_at": 1772815024620
+    },
+    {
+      "id": "2497f780-f6de-4113-83f6-5c6b8ff31ed2",
+      "name": "@kikuchi milo",
+      "value": "@kikuchi milo",
+      "favorite": false,
+      "image_filename": "ComfyUI_00213_.png",
+      "image_updated_at": 1773092817448
+    }
+  ],
+  "mixes": [
+    {
+      "id": "d2f163b6-79f2-4009-9aff-2caf062392f0",
+      "name": "Mix 1",
+      "favorite": false,
+      "image_filename": "ComfyUI_00215_.png",
+      "styles": [
+        {
+          "style_id": "d5407894-81e2-4d34-bef4-539df0bd06da",
+          "weight": 0.8,
+          "enabled": true
+        },
+        {
+          "style_id": "bf2f02fa-2236-4864-9060-629650a838fb",
+          "weight": 0.4,
+          "enabled": true
+        }
+      ],
+      "image_updated_at": 1773093109864
+    },
+    {
+      "id": "6bb3ba07-39e0-440a-bb48-6e710cd49b51",
+      "name": "Test1",
+      "styles": [
+        {
+          "style_id": "d5407894-81e2-4d34-bef4-539df0bd06da",
+          "weight": 1,
+          "enabled": true
+        },
+        {
+          "style_id": "bf2f02fa-2236-4864-9060-629650a838fb",
+          "weight": 1,
+          "enabled": true
+        }
+      ],
+      "image_filename": "ComfyUI_00214_.png",
+      "image_updated_at": 1773092975385
+    },
+    {
+      "id": "107638de-7fce-40fc-99d7-93af6617c2ac",
+      "name": "Quick Mix (Sugimori Ken, Eiichirou Oda)",
+      "favorite": false,
+      "styles": [
+        {
+          "style_id": "e6275561-59ce-45d5-b3d8-0c7beed847aa",
+          "weight": 0.75,
+          "enabled": true
+        },
+        {
+          "style_id": "151a5ecc-4345-499d-a646-3cd34415af39",
+          "weight": 1,
+          "enabled": true
+        }
+      ],
+      "image_filename": "mix_Quick_Mix__Sugimori_Ken__Eiichirou_Oda__b9293f60.png",
+      "image_updated_at": 1772683061
+    },
+    {
+      "id": "f802fc13-afa6-40a9-bacd-2fbcfed718ad",
+      "name": "Quick Mix (Mage / Harumagedon, Eiichirou Oda)",
+      "favorite": false,
+      "styles": [
+        {
+          "style_id": "c76bddd9-93f6-4af9-aabf-3ae6e775f187",
+          "weight": 0.75,
+          "enabled": true
+        },
+        {
+          "style_id": "151a5ecc-4345-499d-a646-3cd34415af39",
+          "weight": 1,
+          "enabled": true
+        }
+      ],
+      "image_filename": "mix_Quick_Mix__Mage___Harumagedon__Eiichirou_3d06afcf.png",
+      "image_updated_at": 1772685913
+    }
+  ],
+  "current_mix_id": "d2f163b6-79f2-4009-9aff-2caf062392f0"
+}
