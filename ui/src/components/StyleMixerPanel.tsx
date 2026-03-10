@@ -1,12 +1,14 @@
 import { useCallback, useRef, useState } from 'react'
 import JSZip from 'jszip'
-import { useStyleMixerData, styleImageUrl, detectConflicts, mergeWithResolutions, ConflictItem } from '../hooks/useStyleMixerData'
+import { useStyleMixerData, styleImageUrl, detectConflicts, mergeWithResolutions, normalizeImportData, ImportNormalizationSummary, ConflictItem } from '../hooks/useStyleMixerData'
 import { Mix, MixEntry, Style, StyleMixerData } from '../types'
 import MixCard from './MixCard'
 import StyleGallery from './StyleGallery'
 import ImageLightbox from './ImageLightbox'
 import BarInput from './BarInput'
 import ConflictResolutionDialog from './ConflictResolutionDialog'
+import AlertModal from './AlertModal'
+import ConfirmModal from './ConfirmModal'
 
 function uid(): string {
   return crypto.randomUUID()
@@ -65,7 +67,7 @@ function CollapsibleSection({ title, children, defaultOpen = true, grow = true }
 }
 
 export default function StyleMixerPanel() {
-  const { data, loading, error, update, pendingRefresh, refreshNodes } = useStyleMixerData()
+  const { data, loading, error, update, pendingRefresh, refreshNodes, reload } = useStyleMixerData()
 
   const currentMix = data.mixes.find((m) => m.id === data.current_mix_id) ?? null
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
@@ -75,9 +77,52 @@ export default function StyleMixerPanel() {
   // Import/Export state
   const [conflicts, setConflicts] = useState<ConflictItem[]>([])
   const [pendingImport, setPendingImport] = useState<StyleMixerData | null>(null)
+  const [pendingImportSummary, setPendingImportSummary] = useState<ImportNormalizationSummary | null>(null)
   const [importing, setImporting] = useState(false)
   const styleFileInputRef = useRef<HTMLInputElement>(null)
   const mixFileInputRef = useRef<HTMLInputElement>(null)
+  const allFileInputRef = useRef<HTMLInputElement>(null)
+
+  type ImportMode = 'replace' | 'merge'
+  type DuplicatePolicy = 'rename' | 'replace' | 'skip'
+
+  // Modal state
+  const [alertModal, setAlertModal] = useState<{ title: string; message: string } | null>(null)
+  const [confirmModal, setConfirmModal] = useState<{ title: string; message: string; confirmText?: string; cancelText?: string; onConfirm: () => void; onCancel: () => void } | null>(null)
+  const [modeModal, setModeModal] = useState<{ onConfirm: (mode: ImportMode) => void; onCancel: () => void } | null>(null)
+  const [policyModal, setPolicyModal] = useState<{ onConfirm: (policy: DuplicatePolicy) => void; onCancel: () => void } | null>(null)
+
+  const showImportCleanupToast = useCallback((summary: ImportNormalizationSummary | null) => {
+    if (!summary) return
+    const parts: string[] = []
+    if (summary.ignoredStyles > 0) parts.push(`${summary.ignoredStyles} duplicate style(s) ignored`)
+    if (summary.ignoredMixes > 0) parts.push(`${summary.ignoredMixes} duplicate mix(es) ignored`)
+    if (summary.skippedInvalidImageRefs > 0) parts.push(`${summary.skippedInvalidImageRefs} invalid image reference(s) skipped`)
+    if (parts.length === 0) return
+    ;(window as any).app?.toast?.add({
+      severity: 'info',
+      summary: 'Import Cleanup',
+      detail: parts.join(' · '),
+      life: 4500,
+    })
+  }, [])
+
+  const showServerImportCleanupToast = useCallback((summary: any, skippedInvalidImages?: number) => {
+    const parts: string[] = []
+    const ignoredStyles = Number(summary?.ignored_duplicate_styles ?? 0)
+    const ignoredMixes = Number(summary?.ignored_duplicate_mixes ?? 0)
+    const skippedImages = Number(skippedInvalidImages ?? 0)
+    if (ignoredStyles > 0) parts.push(`${ignoredStyles} duplicate style(s) ignored`)
+    if (ignoredMixes > 0) parts.push(`${ignoredMixes} duplicate mix(es) ignored`)
+    if (skippedImages > 0) parts.push(`${skippedImages} invalid image path(s) skipped`)
+    if (parts.length === 0) return
+    ;(window as any).app?.toast?.add({
+      severity: 'info',
+      summary: 'Import Cleanup',
+      detail: parts.join(' · '),
+      life: 4500,
+    })
+  }, [])
 
   // ── Style operations ────────────────────────────────────────────────────────
 
@@ -173,7 +218,27 @@ export default function StyleMixerPanel() {
       if (!jsonFile) throw new Error('Invalid style ZIP: missing style_mixer_data.json')
       
       const jsonText = await jsonFile.async('text')
-      const imported = JSON.parse(jsonText) as StyleMixerData
+      const importedRaw = JSON.parse(jsonText) as StyleMixerData
+      const normalized = normalizeImportData(importedRaw)
+      const imported = normalized.data
+
+      const totalItems = (imported.styles?.length ?? 0) + (imported.mixes?.length ?? 0)
+      if (totalItems >= 5000) {
+        return new Promise<void>((resolve) => {
+          setConfirmModal({
+            title: 'Large Import Warning',
+            message: `This ZIP contains ${totalItems} items (styles + mixes). Import may be slow.\n\nDo you want to continue?`,
+            onConfirm: () => {
+              setConfirmModal(null)
+              resolve()
+            },
+            onCancel: () => {
+              setConfirmModal(null)
+              resolve()
+            },
+          })
+        })
+      }
       
       if (!imported.styles || imported.styles.length === 0) {
         throw new Error('No styles found in import file')
@@ -186,6 +251,7 @@ export default function StyleMixerPanel() {
         // Show conflict dialog
         setConflicts(conflictList)
         setPendingImport(imported)
+        setPendingImportSummary(normalized.summary)
       } else {
         // No conflicts - merge directly
         const merged = mergeWithResolutions(imported, data, {})
@@ -196,19 +262,18 @@ export default function StyleMixerPanel() {
           detail: `${imported.styles.length} style(s) imported successfully.`,
           life: 3000,
         })
+        showImportCleanupToast(normalized.summary)
       }
     } catch (err) {
       console.error('[ImmacStyleMixer] Import failed', err)
-      ;(window as any).app?.toast?.add({
-        severity: 'error',
-        summary: 'Import Failed',
-        detail: String(err),
-        life: 5000,
+      setAlertModal({
+        title: 'Import Failed',
+        message: String(err),
       })
     } finally {
       setImporting(false)
     }
-  }, [data, update])
+  }, [data, update, showImportCleanupToast])
 
   const handleImportMix = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -222,7 +287,27 @@ export default function StyleMixerPanel() {
       if (!jsonFile) throw new Error('Invalid mix ZIP: missing style_mixer_data.json')
       
       const jsonText = await jsonFile.async('text')
-      const imported = JSON.parse(jsonText) as StyleMixerData
+      const importedRaw = JSON.parse(jsonText) as StyleMixerData
+      const normalized = normalizeImportData(importedRaw)
+      const imported = normalized.data
+
+      const totalItems = (imported.styles?.length ?? 0) + (imported.mixes?.length ?? 0)
+      if (totalItems >= 5000) {
+        return new Promise<void>((resolve) => {
+          setConfirmModal({
+            title: 'Large Import Warning',
+            message: `This ZIP contains ${totalItems} items (styles + mixes). Import may be slow.\n\nDo you want to continue?`,
+            onConfirm: () => {
+              setConfirmModal(null)
+              resolve()
+            },
+            onCancel: () => {
+              setConfirmModal(null)
+              resolve()
+            },
+          })
+        })
+      }
       
       if (!imported.mixes || imported.mixes.length === 0) {
         throw new Error('No mixes found in import file')
@@ -235,6 +320,7 @@ export default function StyleMixerPanel() {
         // Show conflict dialog
         setConflicts(conflictList)
         setPendingImport(imported)
+        setPendingImportSummary(normalized.summary)
       } else {
         // No conflicts - merge directly
         const merged = mergeWithResolutions(imported, data, {})
@@ -245,19 +331,18 @@ export default function StyleMixerPanel() {
           detail: `${imported.mixes.length} mix(es) imported successfully.`,
           life: 3000,
         })
+        showImportCleanupToast(normalized.summary)
       }
     } catch (err) {
       console.error('[ImmacStyleMixer] Import failed', err)
-      ;(window as any).app?.toast?.add({
-        severity: 'error',
-        summary: 'Import Failed',
-        detail: String(err),
-        life: 5000,
+      setAlertModal({
+        title: 'Import Failed',
+        message: String(err),
       })
     } finally {
       setImporting(false)
     }
-  }, [data, update])
+  }, [data, update, showImportCleanupToast])
 
   const handleConflictResolution = useCallback((resolutions: Record<string, 'rename' | 'replace'>) => {
     if (!pendingImport) return
@@ -272,11 +357,216 @@ export default function StyleMixerPanel() {
       detail: `${totalItems} item(s) imported successfully.`,
       life: 3000,
     })
+    showImportCleanupToast(pendingImportSummary)
     
     // Clear state
     setConflicts([])
     setPendingImport(null)
-  }, [pendingImport, data, update])
+    setPendingImportSummary(null)
+  }, [pendingImport, pendingImportSummary, data, update, showImportCleanupToast])
+
+  const handleImportAll = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    const mode = await new Promise<{ importMode: ImportMode; duplicatePolicy: DuplicatePolicy } | null>((resolveMode) => {
+      setModeModal({
+        onConfirm: (selectedMode) => {
+          setModeModal(null)
+          if (selectedMode === 'replace' && (data.styles.length > 0 || data.mixes.length > 0)) {
+            setConfirmModal({
+              title: 'Confirm Replace',
+              message: `Replace will overwrite all current data (${data.styles.length} styles, ${data.mixes.length} mixes).\n\nDo you want to continue?`,
+              onConfirm: () => {
+                setConfirmModal(null)
+                resolveMode({ importMode: 'replace', duplicatePolicy: 'rename' })
+              },
+              onCancel: () => {
+                setConfirmModal(null)
+                resolveMode(null)
+              },
+            })
+          } else if (selectedMode === 'replace') {
+            resolveMode({ importMode: 'replace', duplicatePolicy: 'rename' })
+          } else {
+            setPolicyModal({
+              onConfirm: (policy) => {
+                setPolicyModal(null)
+                resolveMode({ importMode: 'merge', duplicatePolicy: policy })
+              },
+              onCancel: () => {
+                setPolicyModal(null)
+                resolveMode(null)
+              },
+            })
+          }
+        },
+        onCancel: () => {
+          setModeModal(null)
+          resolveMode(null)
+        },
+      })
+    })
+    if (!mode) return
+
+    try {
+      setImporting(true)
+      const isZip = file.name.toLowerCase().endsWith('.zip') || file.type === 'application/zip'
+      const isJson = file.name.toLowerCase().endsWith('.json') || file.type.includes('json')
+
+      if (!isZip && !isJson) {
+        throw new Error('Unsupported file type. Use .json or .zip backup files.')
+      }
+
+      if (isZip) {
+        const zip = await JSZip.loadAsync(file)
+        const dataFile = zip.file('style_mixer_data.json')
+        if (dataFile) {
+          const parsed = JSON.parse(await dataFile.async('string')) as StyleMixerData
+          const styleCount = Array.isArray(parsed?.styles) ? parsed.styles.length : 0
+          const mixCount = Array.isArray(parsed?.mixes) ? parsed.mixes.length : 0
+          const itemCount = styleCount + mixCount
+          if (itemCount >= 5000) {
+            const proceed = await new Promise<boolean>((resolve) => {
+              setConfirmModal({
+                title: 'Large Import Warning',
+                message: `This ZIP contains ${itemCount} items (styles + mixes). Import may be slow.\n\nDo you want to continue?`,
+                onConfirm: () => {
+                  setConfirmModal(null)
+                  resolve(true)
+                },
+                onCancel: () => {
+                  setConfirmModal(null)
+                  resolve(false)
+                },
+              })
+            })
+            if (!proceed) return
+          }
+        }
+
+        const callRestore = async (imageFailureAction: 'ask' | 'continue' | 'rollback') => {
+          const params = new URLSearchParams({
+            import_mode: mode.importMode,
+            duplicate_policy: mode.duplicatePolicy,
+            image_failure_action: imageFailureAction,
+          })
+          return fetch(`/immac_style_mixer/api/restore.zip?${params.toString()}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/zip' },
+            body: await file.arrayBuffer(),
+          })
+        }
+
+        let resp = await callRestore('ask')
+        if (resp.status === 409) {
+          const problem = await resp.json()
+          const failed = Number(problem.total_failed_images ?? 0)
+          const continueImport = await new Promise<boolean>((resolve) => {
+            setConfirmModal({
+              title: 'Image Import Failed',
+              message: `${failed} image(s) failed to restore.\n\nPress OK to continue without those images, or Cancel to rollback.`,
+              onConfirm: () => {
+                setConfirmModal(null)
+                resolve(true)
+              },
+              onCancel: () => {
+                setConfirmModal(null)
+                resolve(false)
+              },
+            })
+          })
+          if (continueImport) {
+            resp = await callRestore('continue')
+          } else {
+            const rollbackResp = await callRestore('rollback')
+            if (!rollbackResp.ok) {
+              const rollbackText = await rollbackResp.text()
+              throw new Error(`Rollback failed: HTTP ${rollbackResp.status}: ${rollbackText.slice(0, 300)}`)
+            }
+            setAlertModal({
+              title: 'Import Cancelled',
+              message: 'Restore rolled back. No data changes were applied.',
+            })
+            return
+          }
+        }
+
+        if (!resp.ok) {
+          const text = await resp.text()
+          throw new Error(`HTTP ${resp.status}: ${text.slice(0, 300)}`)
+        }
+
+        const result = await resp.json()
+        showServerImportCleanupToast(result?.summary, result?.skipped_invalid_images)
+        await reload()
+        ;(window as any).app?.toast?.add({
+          severity: 'success',
+          summary: 'Import Complete',
+          detail: `Imported ${result?.styles ?? 0} styles and ${result?.mixes ?? 0} mixes from ZIP.`,
+          life: 4000,
+        })
+        return
+      }
+
+      const text = await file.text()
+      const parsed = JSON.parse(text) as StyleMixerData
+      const normalized = normalizeImportData(parsed)
+      const itemCount = normalized.data.styles.length + normalized.data.mixes.length
+      if (itemCount >= 5000) {
+        const proceed = await new Promise<boolean>((resolve) => {
+          setConfirmModal({
+            title: 'Large Import Warning',
+            message: `This JSON contains ${itemCount} items (styles + mixes). Import may be slow.\n\nDo you want to continue?`,
+            onConfirm: () => {
+              setConfirmModal(null)
+              resolve(true)
+            },
+            onCancel: () => {
+              setConfirmModal(null)
+              resolve(false)
+            },
+          })
+        })
+        if (!proceed) return
+      }
+
+      const response = await fetch('/immac_style_mixer/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: normalized.data,
+          import_mode: mode.importMode,
+          duplicate_policy: mode.duplicatePolicy,
+        }),
+      })
+
+      if (!response.ok) {
+        const body = await response.text()
+        throw new Error(`HTTP ${response.status}: ${body.slice(0, 300)}`)
+      }
+
+      const result = await response.json()
+      showImportCleanupToast(normalized.summary)
+      showServerImportCleanupToast(result?.summary)
+      await reload()
+      ;(window as any).app?.toast?.add({
+        severity: 'success',
+        summary: 'Import Complete',
+        detail: `Imported ${result?.styles ?? 0} styles and ${result?.mixes ?? 0} mixes from JSON.`,
+        life: 4000,
+      })
+    } catch (err) {
+      console.error('[ImmacStyleMixer] Import all failed', err)
+      setAlertModal({
+        title: 'Import Failed',
+        message: String(err),
+      })
+    } finally {
+      setImporting(false)
+    }
+  }, [data.styles.length, data.mixes.length, reload, showImportCleanupToast, showServerImportCleanupToast])
 
   const handleExportAll = useCallback(async () => {
     try {
@@ -361,6 +651,7 @@ export default function StyleMixerPanel() {
               )}
               {currentMix.styles.map((entry) => {
                 const style = data.styles.find((s) => s.id === entry.style_id)
+                const imageSrc = style?.image_filename ? styleImageUrl(style.image_filename, style.image_updated_at) : ''
                 return (
                   <div
                     key={entry.style_id}
@@ -388,10 +679,10 @@ export default function StyleMixerPanel() {
                         background: 'var(--p-surface-ground, #141414)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        {style?.image_filename ? (
+                        {imageSrc ? (
                           <img
-                            src={styleImageUrl(style.image_filename, style.image_updated_at)}
-                            alt={style.name}
+                            src={imageSrc}
+                            alt={style?.name ?? 'style'}
                             style={{
                               width: '100%', height: '100%', objectFit: 'contain', display: 'block',
                               transition: 'transform 0.3s ease',
@@ -402,10 +693,10 @@ export default function StyleMixerPanel() {
                           <i className="pi pi-image" style={{ fontSize: 20, color: '#555' }} />
                         )}
                       </div>
-                      {style?.image_filename && hoveredChipId === entry.style_id && (
+                      {imageSrc && hoveredChipId === entry.style_id && (
                         <button
                           title="View full size"
-                          onClick={() => setLightboxSrc(styleImageUrl(style.image_filename!, style.image_updated_at))}
+                          onClick={() => setLightboxSrc(imageSrc)}
                           style={{
                             position: 'absolute',
                             top: 6,
@@ -588,6 +879,28 @@ export default function StyleMixerPanel() {
         </button>
 
         <button
+          onClick={() => allFileInputRef.current?.click()}
+          disabled={importing}
+          style={{
+            padding: '6px 12px',
+            fontSize: 12,
+            backgroundColor: '#2a2a2a',
+            border: '1px solid #444',
+            borderRadius: 4,
+            color: '#ccc',
+            cursor: importing ? 'not-allowed' : 'pointer',
+            opacity: importing ? 0.5 : 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+          title="Import all styles and mixes from JSON or ZIP backup"
+        >
+          <i className="pi pi-download" style={{ fontSize: 12 }} />
+          Import All
+        </button>
+
+        <button
           onClick={handleExportAll}
           style={{
             padding: '6px 12px',
@@ -623,6 +936,13 @@ export default function StyleMixerPanel() {
           onChange={handleImportMix}
           style={{ display: 'none' }}
         />
+        <input
+          ref={allFileInputRef}
+          type="file"
+          accept=".json,.zip,application/json,application/zip"
+          onChange={handleImportAll}
+          style={{ display: 'none' }}
+        />
       </div>
 
       {lightboxSrc && (
@@ -632,8 +952,236 @@ export default function StyleMixerPanel() {
         <ConflictResolutionDialog
           conflicts={conflicts}
           onConfirm={handleConflictResolution}
-          onCancel={() => { setConflicts([]); setPendingImport(null) }}
+          onCancel={() => { setConflicts([]); setPendingImport(null); setPendingImportSummary(null) }}
         />
+      )}
+
+      {/* Modal Dialogs */}
+      {alertModal && (
+        <AlertModal
+          title={alertModal.title}
+          message={alertModal.message}
+          onClose={() => setAlertModal(null)}
+        />
+      )}
+
+      {confirmModal && (
+        <ConfirmModal
+          title={confirmModal.title}
+          message={confirmModal.message}
+          confirmText={confirmModal.confirmText}
+          cancelText={confirmModal.cancelText}
+          onConfirm={() => confirmModal.onConfirm()}
+          onCancel={() => confirmModal.onCancel()}
+        />
+      )}
+
+      {modeModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+          }}
+          onClick={() => modeModal.onCancel()}
+        >
+          <div
+            style={{
+              backgroundColor: '#1e1e1e',
+              border: '1px solid #444',
+              borderRadius: 4,
+              padding: 20,
+              maxWidth: 400,
+              width: '90%',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600 }}>
+              Select Import Mode
+            </h3>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#aaa' }}>
+              Choose how to handle this import:
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+              <button
+                onClick={() => modeModal.onConfirm('merge')}
+                style={{
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  backgroundColor: '#2a2a2a',
+                  border: '1px solid #444',
+                  borderRadius: 4,
+                  color: '#fff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#333')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2a2a2a')}
+              >
+                <strong>Merge</strong>
+                <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>
+                  Combine with existing data (choose rename/replace strategy)
+                </div>
+              </button>
+              <button
+                onClick={() => modeModal.onConfirm('replace')}
+                style={{
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  backgroundColor: '#2a2a2a',
+                  border: '1px solid #444',
+                  borderRadius: 4,
+                  color: '#fff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#333')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2a2a2a')}
+              >
+                <strong>Replace</strong>
+                <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>
+                  Overwrite all current data with imported data
+                </div>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => modeModal.onCancel()}
+                style={{
+                  padding: '6px 16px',
+                  fontSize: 13,
+                  backgroundColor: '#2a2a2a',
+                  border: '1px solid #444',
+                  borderRadius: 4,
+                  color: '#ccc',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {policyModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+          }}
+          onClick={() => policyModal.onCancel()}
+        >
+          <div
+            style={{
+              backgroundColor: '#1e1e1e',
+              border: '1px solid #444',
+              borderRadius: 4,
+              padding: 20,
+              maxWidth: 400,
+              width: '90%',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600 }}>
+              Select Merge Strategy
+            </h3>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#aaa' }}>
+              How should conflicting items be handled?
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+              <button
+                onClick={() => policyModal.onConfirm('rename')}
+                style={{
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  backgroundColor: '#2a2a2a',
+                  border: '1px solid #444',
+                  borderRadius: 4,
+                  color: '#fff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#333')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2a2a2a')}
+              >
+                <strong>Rename</strong>
+                <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>
+                  Auto-number duplicates (e.g., "Style (2)")
+                </div>
+              </button>
+              <button
+                onClick={() => policyModal.onConfirm('replace')}
+                style={{
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  backgroundColor: '#2a2a2a',
+                  border: '1px solid #444',
+                  borderRadius: 4,
+                  color: '#fff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#333')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2a2a2a')}
+              >
+                <strong>Replace</strong>
+                <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>
+                  Overwrite existing items with imported versions
+                </div>
+              </button>
+              <button
+                onClick={() => policyModal.onConfirm('skip')}
+                style={{
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  backgroundColor: '#2a2a2a',
+                  border: '1px solid #444',
+                  borderRadius: 4,
+                  color: '#fff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#333')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2a2a2a')}
+              >
+                <strong>Skip</strong>
+                <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>
+                  Keep existing items, ignore duplicates
+                </div>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => policyModal.onCancel()}
+                style={{
+                  padding: '6px 16px',
+                  fontSize: 13,
+                  backgroundColor: '#2a2a2a',
+                  border: '1px solid #444',
+                  borderRadius: 4,
+                  color: '#ccc',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

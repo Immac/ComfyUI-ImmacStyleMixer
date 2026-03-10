@@ -119,7 +119,79 @@ export function useStyleMixerData() {
     setPendingRefresh(false)
   }, [])
 
-  return { data, loading, error, update, pendingRefresh, refreshNodes }
+  return { data, loading, error, update, pendingRefresh, refreshNodes, reload: fetchData }
+}
+
+function sanitizeImageFilename(filename: string | null | undefined): string | null {
+  if (!filename) return null
+  const raw = String(filename).trim()
+  if (!raw) return null
+  const base = raw.split('/').pop()?.split('\\').pop()?.trim() ?? ''
+  if (!base || base === '.' || base === '..') return null
+  if (base.includes('/') || base.includes('\\') || base.includes('\u0000')) return null
+  const safe = base.replace(/[^A-Za-z0-9._-]/g, '_')
+  if (!safe || safe === '.' || safe === '..') return null
+  return safe
+}
+
+export interface ImportNormalizationSummary {
+  ignoredStyles: number
+  ignoredMixes: number
+  skippedInvalidImageRefs: number
+}
+
+export function normalizeImportData(incoming: StyleMixerData): { data: StyleMixerData; summary: ImportNormalizationSummary } {
+  const seenStyleIds = new Set<string>()
+  const seenStyleNames = new Set<string>()
+  const styles = [] as StyleMixerData['styles']
+  let ignoredStyles = 0
+  let skippedInvalidImageRefs = 0
+  for (const style of incoming.styles ?? []) {
+    const duplicate = (style.id && seenStyleIds.has(style.id)) || (style.name && seenStyleNames.has(style.name))
+    if (duplicate) {
+      ignoredStyles++
+      continue
+    }
+    seenStyleIds.add(style.id)
+    if (style.name) seenStyleNames.add(style.name)
+    const safeImage = sanitizeImageFilename(style.image_filename)
+    if (style.image_filename && !safeImage) skippedInvalidImageRefs++
+    styles.push({ ...style, image_filename: safeImage })
+  }
+
+  const seenMixIds = new Set<string>()
+  const seenMixNames = new Set<string>()
+  const mixes = [] as StyleMixerData['mixes']
+  let ignoredMixes = 0
+  for (const mix of incoming.mixes ?? []) {
+    const duplicate = (mix.id && seenMixIds.has(mix.id)) || (mix.name && seenMixNames.has(mix.name))
+    if (duplicate) {
+      ignoredMixes++
+      continue
+    }
+    seenMixIds.add(mix.id)
+    if (mix.name) seenMixNames.add(mix.name)
+    const safeImage = sanitizeImageFilename(mix.image_filename)
+    if (mix.image_filename && !safeImage) skippedInvalidImageRefs++
+    mixes.push({
+      ...mix,
+      image_filename: safeImage,
+      styles: Array.isArray(mix.styles) ? mix.styles.map((entry) => ({ ...entry })) : [],
+    })
+  }
+
+  return {
+    data: {
+      ...incoming,
+      styles,
+      mixes,
+    },
+    summary: {
+      ignoredStyles,
+      ignoredMixes,
+      skippedInvalidImageRefs,
+    },
+  }
 }
 
 /** Upload a style image via ComfyUI's built-in endpoint and return the filename. */
@@ -138,8 +210,10 @@ export async function uploadStyleImage(file: File): Promise<string> {
  * Pass `updatedAt` (image_updated_at from the Style object) to bust the browser cache
  * when the file has been overwritten in place by the StyleCreate node. */
 export function styleImageUrl(filename: string, updatedAt?: number): string {
+  const safe = sanitizeImageFilename(filename)
+  if (!safe) return ''
   const bust = updatedAt ? `&t=${updatedAt}` : ''
-  return `/view?filename=${encodeURIComponent(filename)}&subfolder=immac_style_mixer%2Fstyles&type=input${bust}`
+  return `/view?filename=${encodeURIComponent(safe)}&subfolder=immac_style_mixer%2Fstyles&type=input${bust}`
 }
 
 /** Upload a mix cover image via ComfyUI's built-in endpoint and return the filename. */
@@ -158,8 +232,10 @@ export async function uploadMixImage(file: File): Promise<string> {
  * Pass `updatedAt` (image_updated_at from the Mix object) to bust the browser cache
  * when the file has been overwritten in place. */
 export function mixImageUrl(filename: string, updatedAt?: number): string {
+  const safe = sanitizeImageFilename(filename)
+  if (!safe) return ''
   const bust = updatedAt ? `&t=${updatedAt}` : ''
-  return `/view?filename=${encodeURIComponent(filename)}&subfolder=immac_style_mixer%2Fmixes&type=input${bust}`
+  return `/view?filename=${encodeURIComponent(safe)}&subfolder=immac_style_mixer%2Fmixes&type=input${bust}`
 }
 
 export interface ConflictItem {
@@ -175,10 +251,11 @@ export function detectConflicts(
   incoming: StyleMixerData,
   existing: StyleMixerData
 ): ConflictItem[] {
+  const incomingClean = normalizeImportData(incoming).data
   const conflicts: ConflictItem[] = []
   
   // Check style conflicts
-  for (const incomingStyle of incoming.styles) {
+  for (const incomingStyle of incomingClean.styles) {
     const existingById = existing.styles.find(s => s.id === incomingStyle.id)
     const existingByName = existing.styles.find(s => s.name === incomingStyle.name)
     
@@ -194,7 +271,7 @@ export function detectConflicts(
   }
   
   // Check mix conflicts
-  for (const incomingMix of incoming.mixes) {
+  for (const incomingMix of incomingClean.mixes) {
     const existingById = existing.mixes.find(m => m.id === incomingMix.id)
     const existingByName = existing.mixes.find(m => m.name === incomingMix.name)
     
@@ -220,6 +297,7 @@ export function mergeWithResolutions(
   existing: StyleMixerData,
   resolutions: Record<string, 'rename' | 'replace'>
 ): StyleMixerData {
+  const incomingClean = normalizeImportData(incoming).data
   const result: StyleMixerData = {
     styles: [...existing.styles],
     mixes: [...existing.mixes],
@@ -241,47 +319,89 @@ export function mergeWithResolutions(
   
   const existingStyleNames = new Set(result.styles.map(s => s.name))
   const existingMixNames = new Set(result.mixes.map(m => m.name))
+  const styleIdMap = new Map<string, string>()
+  const incomingStyleIdToName = new Map<string, string>()
+  const existingStyleIdToName = new Map<string, string>()
+  for (const style of existing.styles) existingStyleIdToName.set(style.id, style.name)
+  for (const style of incomingClean.styles) incomingStyleIdToName.set(style.id, style.name)
+  let touchedCurrentMix = false
   
   // Import styles
-  for (const incomingStyle of incoming.styles) {
+  for (const incomingStyle of incomingClean.styles) {
     const resolution = resolutions[incomingStyle.id]
     const existingIdx = result.styles.findIndex(s => s.id === incomingStyle.id || s.name === incomingStyle.name)
     
     if (resolution === 'replace' && existingIdx >= 0) {
       // Replace existing
-      result.styles[existingIdx] = incomingStyle
+      const existingStyle = result.styles[existingIdx]
+      const replaced = {
+        ...incomingStyle,
+        id: existingStyle.id,
+        name: existingStyle.name,
+        favorite: Boolean(existingStyle.favorite) || Boolean(incomingStyle.favorite),
+      }
+      result.styles[existingIdx] = replaced
+      styleIdMap.set(incomingStyle.id, existingStyle.id)
     } else if (resolution === 'rename' || existingIdx >= 0) {
       // Rename with unique name
       const newName = getUniqueName(incomingStyle.name, existingStyleNames)
       const renamedStyle = { ...incomingStyle, name: newName, id: crypto.randomUUID() }
       result.styles.push(renamedStyle)
       existingStyleNames.add(newName)
+      styleIdMap.set(incomingStyle.id, renamedStyle.id)
     } else {
       // No conflict - just add
       result.styles.push(incomingStyle)
       existingStyleNames.add(incomingStyle.name)
+      styleIdMap.set(incomingStyle.id, incomingStyle.id)
     }
   }
+
+  const finalStyleIds = new Set(result.styles.map((s) => s.id))
+  const finalStyleNameToId = new Map(result.styles.map((s) => [s.name, s.id]))
   
   // Import mixes
-  for (const incomingMix of incoming.mixes) {
+  for (const incomingMix of incomingClean.mixes) {
     const resolution = resolutions[incomingMix.id]
     const existingIdx = result.mixes.findIndex(m => m.id === incomingMix.id || m.name === incomingMix.name)
+    const remappedMix = {
+      ...incomingMix,
+      styles: (incomingMix.styles ?? []).map((entry) => {
+        let mappedStyleId = styleIdMap.get(entry.style_id) ?? entry.style_id
+        if (!finalStyleIds.has(mappedStyleId)) {
+          const styleName = incomingStyleIdToName.get(entry.style_id) ?? existingStyleIdToName.get(entry.style_id)
+          const fallbackId = styleName ? finalStyleNameToId.get(styleName) : undefined
+          if (fallbackId) mappedStyleId = fallbackId
+        }
+        return { ...entry, style_id: mappedStyleId }
+      }),
+    }
     
     if (resolution === 'replace' && existingIdx >= 0) {
       // Replace existing
-      result.mixes[existingIdx] = incomingMix
+      const existingMix = result.mixes[existingIdx]
+      result.mixes[existingIdx] = {
+        ...remappedMix,
+        id: existingMix.id,
+        name: existingMix.name,
+        favorite: Boolean(existingMix.favorite) || Boolean(incomingMix.favorite),
+      }
+      if (existing.current_mix_id === existingMix.id) touchedCurrentMix = true
     } else if (resolution === 'rename' || existingIdx >= 0) {
       // Rename with unique name
       const newName = getUniqueName(incomingMix.name, existingMixNames)
-      const renamedMix = { ...incomingMix, name: newName, id: crypto.randomUUID() }
+      const renamedMix = { ...remappedMix, name: newName, id: crypto.randomUUID() }
       result.mixes.push(renamedMix)
       existingMixNames.add(newName)
     } else {
       // No conflict - just add
-      result.mixes.push(incomingMix)
+      result.mixes.push(remappedMix)
       existingMixNames.add(incomingMix.name)
     }
+  }
+
+  if (touchedCurrentMix) {
+    result.current_mix_id = null
   }
   
   return result

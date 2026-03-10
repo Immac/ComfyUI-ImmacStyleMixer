@@ -51,6 +51,35 @@ async function init(): Promise<void> {
     total_added_mixes: number
     total_conflicted_styles: number
     total_conflicted_mixes: number
+    ignored_duplicate_styles?: number
+    ignored_duplicate_mixes?: number
+  }
+
+  function showImportCleanupToast(summary?: RestoreSummary, skippedInvalidImages?: number) {
+    const ignoredStyles = Number(summary?.ignored_duplicate_styles ?? 0)
+    const ignoredMixes = Number(summary?.ignored_duplicate_mixes ?? 0)
+    const skippedImages = Number(skippedInvalidImages ?? 0)
+    const parts: string[] = []
+    if (ignoredStyles > 0) parts.push(`${ignoredStyles} duplicate style(s) ignored`)
+    if (ignoredMixes > 0) parts.push(`${ignoredMixes} duplicate mix(es) ignored`)
+    if (skippedImages > 0) parts.push(`${skippedImages} invalid image path(s) skipped`)
+    if (parts.length === 0) return
+
+    try {
+      ;(app as any)?.toast?.add({
+        severity: 'info',
+        summary: 'Import Cleanup',
+        detail: parts.join(' · '),
+        life: 5000,
+      })
+    } catch (_) {
+      ;(app as any)?.toast?.add({
+        severity: 'info',
+        summary: 'Import Cleanup',
+        detail: parts.join(' · '),
+        life: 5000,
+      })
+    }
   }
 
   function showRestoreConfirmation(summary: RestoreSummary, totalStyles: number, totalMixes: number, images?: number) {
@@ -108,7 +137,12 @@ async function init(): Promise<void> {
 
     lines.push('Reload the Style Mixer panel to see changes.')
 
-    alert(lines.join('\n'))
+    ;(app as any)?.toast?.add({
+      severity: 'info',
+      summary: 'Restore Summary',
+      detail: lines.join('\n'),
+      life: 6000,
+    })
   }
 
   function makeUniqueName(baseName: string, usedNames: Set<string>): string {
@@ -180,7 +214,15 @@ async function init(): Promise<void> {
 
   async function downloadBackup() {
     const resp = await fetch(API_URL)
-    if (!resp.ok) { alert(`Backup failed: HTTP ${resp.status}`); return }
+    if (!resp.ok) { 
+      ;(app as any)?.toast?.add({
+        severity: 'error',
+        summary: 'Backup Export Failed',
+        detail: `HTTP ${resp.status}`,
+        life: 4000,
+      })
+      return
+    }
     const data = await resp.json()
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -213,12 +255,22 @@ async function init(): Promise<void> {
           try {
             let finalBuf = buf
             let finalDuplicatePolicy = duplicatePolicy
+            let itemCount = 0
 
-            if (importMode === 'merge') {
-              const zip = await JSZip.loadAsync(buf)
-              const dataFile = zip.file('style_mixer_data.json')
-              if (dataFile) {
-                const parsed = JSON.parse(await dataFile.async('string'))
+            const zip = await JSZip.loadAsync(buf)
+            const dataFile = zip.file('style_mixer_data.json')
+            if (dataFile) {
+              const parsed = JSON.parse(await dataFile.async('string'))
+              const styleCount = Array.isArray(parsed?.styles) ? parsed.styles.length : 0
+              const mixCount = Array.isArray(parsed?.mixes) ? parsed.mixes.length : 0
+              itemCount = styleCount + mixCount
+              if (itemCount >= 5000) {
+                const proceedLarge = window.confirm(
+                  `This ZIP contains ${itemCount} items (styles + mixes). Import may be slow.\n\nDo you want to continue?`
+                )
+                if (!proceedLarge) return
+              }
+              if (importMode === 'merge') {
                 const isSmallMixImport = Array.isArray(parsed?.mixes) && parsed.mixes.length === 1
                 if (isSmallMixImport) {
                   const resolved = await resolveSmallMixCollisionChoices(parsed)
@@ -229,16 +281,44 @@ async function init(): Promise<void> {
               }
             }
 
-            const params = new URLSearchParams({
-              import_mode: importMode,
-              duplicate_policy: finalDuplicatePolicy,
-            })
-            const modeUrl = `/immac_style_mixer/api/restore.zip?${params.toString()}`
-            const resp = await fetch(modeUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/zip' },
-              body: finalBuf,
-            })
+            const callRestore = async (imageFailureAction: 'ask' | 'continue' | 'rollback') => {
+              const params = new URLSearchParams({
+                import_mode: importMode,
+                duplicate_policy: finalDuplicatePolicy,
+                image_failure_action: imageFailureAction,
+              })
+              return fetch(`/immac_style_mixer/api/restore.zip?${params.toString()}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/zip' },
+                body: finalBuf,
+              })
+            }
+
+            let resp = await callRestore('ask')
+            if (resp.status === 409) {
+              const problem = await resp.json()
+              const failed = Number(problem.total_failed_images ?? 0)
+              const continueImport = window.confirm(
+                `${failed} image(s) failed to restore.\n\nPress OK to continue without those images, or Cancel to rollback.`
+              )
+              if (continueImport) {
+                resp = await callRestore('continue')
+              } else {
+                const rollbackResp = await callRestore('rollback')
+                if (!rollbackResp.ok) {
+                  const rollbackText = await rollbackResp.text()
+                  throw new Error(`Rollback failed: HTTP ${rollbackResp.status}: ${rollbackText.slice(0, 300)}`)
+                }
+                ;(app as any)?.toast?.add({
+                  severity: 'info',
+                  summary: 'Import Cancelled',
+                  detail: 'Restore rolled back. No data changes were applied.',
+                  life: 4000,
+                })
+                return
+              }
+            }
+
             if (!resp.ok) {
               const text = await resp.text()
               throw new Error(`HTTP ${resp.status}: ${text.slice(0, 300)}`)
@@ -246,6 +326,18 @@ async function init(): Promise<void> {
             const result = await resp.json()
             if (result.summary) {
               showRestoreConfirmation(result.summary, result.styles, result.mixes, result.images)
+              showImportCleanupToast(result.summary, result.skipped_invalid_images)
+              if ((result.failed_images ?? 0) > 0 || (result.skipped_invalid_images ?? 0) > 0) {
+                const notes: string[] = []
+                if ((result.failed_images ?? 0) > 0) notes.push(`${result.failed_images} failed images`)
+                if ((result.skipped_invalid_images ?? 0) > 0) notes.push(`${result.skipped_invalid_images} invalid image paths skipped`)
+                ;(app as any)?.toast?.add({
+                  severity: 'warn',
+                  summary: 'Restore Completed with Warnings',
+                  detail: notes.join(', '),
+                  life: 5000,
+                })
+              }
             } else {
               try {
                 ;(app as any)?.toast?.add({
@@ -255,13 +347,30 @@ async function init(): Promise<void> {
                   life: 6000,
                 })
               } catch (_) {
-                alert(`ZIP restored: ${result.styles} styles, ${result.mixes} mixes, ${result.images} images. Reload the Style Mixer panel to see changes.`)
+                ;(app as any)?.toast?.add({
+                  severity: 'success',
+                  summary: 'ZIP Restored',
+                  detail: `${result.styles} styles, ${result.mixes} mixes, ${result.images} images. Reload the Style Mixer panel to see changes.`,
+                  life: 5000,
+                })
               }
             }
           } catch (err) {
-            alert(`Failed to restore ZIP backup: ${(err as Error).message}`)
+            ;(app as any)?.toast?.add({
+              severity: 'error',
+              summary: 'ZIP Restore Failed',
+              detail: (err as Error).message,
+              life: 5000,
+            })
           }
-        }).catch((err) => alert(`Could not read file: ${(err as Error).message}`))
+        }).catch((err) => {
+          ;(app as any)?.toast?.add({
+            severity: 'error',
+            summary: 'File Read Failed',
+            detail: (err as Error).message,
+            life: 4000,
+          })
+        })
       } else {
         // JSON restore
         const reader = new FileReader()
@@ -270,6 +379,14 @@ async function init(): Promise<void> {
             const parsed = JSON.parse(ev.target?.result as string)
             if (!Array.isArray(parsed.styles) || !Array.isArray(parsed.mixes)) {
               throw new Error('Invalid backup: missing styles or mixes arrays.')
+            }
+
+            const itemCount = parsed.styles.length + parsed.mixes.length
+            if (itemCount >= 5000) {
+              const proceedLarge = window.confirm(
+                `This backup contains ${itemCount} items (styles + mixes). Import may be slow.\n\nDo you want to continue?`
+              )
+              if (!proceedLarge) return
             }
 
             let dataToImport = parsed
@@ -293,6 +410,7 @@ async function init(): Promise<void> {
             const result = await resp.json()
             if (result.summary) {
               showRestoreConfirmation(result.summary, result.styles, result.mixes)
+              showImportCleanupToast(result.summary, result.skipped_invalid_images)
             } else {
               try {
                 ;(app as any)?.toast?.add({
@@ -302,11 +420,21 @@ async function init(): Promise<void> {
                   life: 6000,
                 })
               } catch (_) {
-                alert(`Backup restored: ${result.styles} styles, ${result.mixes} mixes. Reload the Style Mixer panel to see changes.`)
+                ;(app as any)?.toast?.add({
+                  severity: 'success',
+                  summary: 'Backup Restored',
+                  detail: `${result.styles} styles, ${result.mixes} mixes. Reload the Style Mixer panel to see changes.`,
+                  life: 5000,
+                })
               }
             }
           } catch (err) {
-            alert(`Failed to restore backup: ${(err as Error).message}`)
+            ;(app as any)?.toast?.add({
+              severity: 'error',
+              summary: 'Backup Restore Failed',
+              detail: (err as Error).message,
+              life: 5000,
+            })
           }
         }
         reader.readAsText(file)

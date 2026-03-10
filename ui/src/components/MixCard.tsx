@@ -4,6 +4,7 @@ import { Mix, MixEntry, Style } from '../types'
 import { mixImageUrl, styleImageUrl, uploadMixImage } from '../hooks/useStyleMixerData'
 import ImageLightbox from './ImageLightbox'
 import BarInput from './BarInput'
+import AlertModal from './AlertModal'
 
 interface Props {
   mix: Mix
@@ -18,6 +19,9 @@ interface Props {
 }
 
 export default function MixCard({ mix, styles, isActive, isDirty, onActivate, onUpdate, onDelete, onDuplicate, onRefreshCache }: Props) {
+  const missingRefCount = mix.styles.filter((entry) => !styles.some((s) => s.id === entry.style_id)).length
+  const mixCoverUrl = mix.image_filename ? mixImageUrl(mix.image_filename, mix.image_updated_at) : ''
+
   function handleCardClick(e: React.MouseEvent) {
     const target = e.target as HTMLElement
     if (!target.closest('button, input, select, textarea, a')) onActivate()
@@ -34,6 +38,7 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
   const [copied, setCopied] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [styleDragOver, setStyleDragOver] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   function copyPrompt() {
@@ -138,16 +143,21 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
       zip.file('style_mixer_data.json', JSON.stringify(data, null, 2))
 
       if (mix.image_filename) {
-        const imageResp = await fetch(mixImageUrl(mix.image_filename, mix.image_updated_at))
-        if (imageResp.ok) {
-          const imageBlob = await imageResp.blob()
-          zip.file(`images/mixes/${mix.image_filename}`, imageBlob)
+        const coverUrl = mixImageUrl(mix.image_filename, mix.image_updated_at)
+        if (coverUrl) {
+          const imageResp = await fetch(coverUrl)
+          if (imageResp.ok) {
+            const imageBlob = await imageResp.blob()
+            zip.file(`images/mixes/${mix.image_filename}`, imageBlob)
+          }
         }
       }
 
       for (const referencedStyle of referencedStyles) {
         if (!referencedStyle.image_filename) continue
-        const styleResp = await fetch(styleImageUrl(referencedStyle.image_filename, referencedStyle.image_updated_at))
+        const styleUrl = styleImageUrl(referencedStyle.image_filename, referencedStyle.image_updated_at)
+        if (!styleUrl) continue
+        const styleResp = await fetch(styleUrl)
         if (!styleResp.ok) continue
         const styleBlob = await styleResp.blob()
         zip.file(`images/styles/${referencedStyle.image_filename}`, styleBlob)
@@ -162,7 +172,7 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
       a.click()
       URL.revokeObjectURL(url)
     } catch (e) {
-      alert(`Failed to export mix ZIP: ${(e as Error).message}`)
+      setExportError(`Failed to export mix ZIP: ${(e as Error).message}`)
     } finally {
       setExporting(false)
     }
@@ -246,6 +256,22 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
           >
             <i className="pi pi-exclamation-circle" />
           </button>
+        )}
+        {missingRefCount > 0 && (
+          <span
+            title={`${missingRefCount} missing style reference${missingRefCount === 1 ? '' : 's'}`}
+            style={{
+              fontSize: 10,
+              color: '#ffb347',
+              border: '1px solid #7a5b2e',
+              borderRadius: 4,
+              padding: '1px 4px',
+              background: 'rgba(255,179,71,0.1)',
+              flexShrink: 0,
+            }}
+          >
+            Missing refs: {missingRefCount}
+          </span>
         )}
         <button
           title={mix.favorite ? 'Remove bookmark' : 'Bookmark'}
@@ -347,9 +373,9 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
         >
           {uploading ? (
             'Uploading…'
-          ) : mix.image_filename ? (
+          ) : mixCoverUrl ? (
             <img
-              src={mixImageUrl(mix.image_filename, mix.image_updated_at)}
+              src={mixCoverUrl}
               alt={mix.name}
               style={{
                 width: '100%', height: '100%', objectFit: 'contain',
@@ -361,7 +387,7 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
             '+ cover image'
           )}
         </div>
-        {!uploading && mix.image_filename && imageHovered && (
+        {!uploading && !!mixCoverUrl && imageHovered && (
           <button
             title="View full size"
             onClick={(e) => { e.stopPropagation(); setLightboxOpen(true) }}
@@ -372,9 +398,9 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
         )}
       </div>
 
-      {lightboxOpen && mix.image_filename && (
+      {lightboxOpen && !!mixCoverUrl && (
         <ImageLightbox
-          src={mixImageUrl(mix.image_filename, mix.image_updated_at)}
+          src={mixCoverUrl}
           alt={mix.name}
           onClose={() => setLightboxOpen(false)}
         />
@@ -419,7 +445,7 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
               </button>
 
               <span style={{ fontSize: 12, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {style?.name ?? entry.style_id}
+                {style?.name ?? `⚠ Missing style (${entry.style_id})`}
               </span>
 
               {/* Weight input */}
@@ -482,6 +508,14 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
           </div>
         )}
       </div>
+
+      {exportError && (
+        <AlertModal
+          title="Export Failed"
+          message={exportError}
+          onClose={() => setExportError(null)}
+        />
+      )}
     </div>
   )
 }

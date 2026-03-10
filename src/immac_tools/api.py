@@ -32,6 +32,7 @@ Images are stored and served via ComfyUI's built-in endpoints:
 import io
 import json
 import os
+import re
 import uuid
 import zipfile
 
@@ -83,6 +84,58 @@ def _copy_mix(mix: dict) -> dict:
     return out
 
 
+def _sanitize_image_filename(name: str) -> str | None:
+    name = os.path.basename(str(name or "")).strip()
+    if not name or name in {".", ".."}:
+        return None
+    if any(part in {".", ".."} for part in name.split("/")):
+        return None
+    if any(ch in name for ch in ("/", "\\", "\x00")):
+        return None
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", name)
+    if not safe or safe in {".", ".."}:
+        return None
+    return safe
+
+
+def _dedupe_styles(items: list[dict]) -> tuple[list[dict], int]:
+    seen_ids: set[str] = set()
+    seen_names: set[str] = set()
+    out: list[dict] = []
+    ignored = 0
+    for item in items:
+        sid = item.get("id")
+        name = str(item.get("name", ""))
+        if (isinstance(sid, str) and sid in seen_ids) or (name and name in seen_names):
+            ignored += 1
+            continue
+        out.append(item)
+        if isinstance(sid, str):
+            seen_ids.add(sid)
+        if name:
+            seen_names.add(name)
+    return out, ignored
+
+
+def _dedupe_mixes(items: list[dict]) -> tuple[list[dict], int]:
+    seen_ids: set[str] = set()
+    seen_names: set[str] = set()
+    out: list[dict] = []
+    ignored = 0
+    for item in items:
+        mid = item.get("id")
+        name = str(item.get("name", ""))
+        if (isinstance(mid, str) and mid in seen_ids) or (name and name in seen_names):
+            ignored += 1
+            continue
+        out.append(item)
+        if isinstance(mid, str):
+            seen_ids.add(mid)
+        if name:
+            seen_names.add(name)
+    return out, ignored
+
+
 def _make_unique_name(base_name: str, used_names: set[str]) -> str:
     if base_name not in used_names:
         return base_name
@@ -109,6 +162,20 @@ def _merge_data(existing: dict, incoming: dict, duplicate_policy: str) -> tuple[
     existing_mixes = [_copy_mix(m) for m in existing.get("mixes", []) if isinstance(m, dict)]
     incoming_styles = [_copy_style(s) for s in incoming.get("styles", []) if isinstance(s, dict)]
     incoming_mixes = [_copy_mix(m) for m in incoming.get("mixes", []) if isinstance(m, dict)]
+
+    incoming_styles, ignored_dup_styles = _dedupe_styles(incoming_styles)
+    incoming_mixes, ignored_dup_mixes = _dedupe_mixes(incoming_mixes)
+
+    existing_style_id_to_name = {
+        s.get("id"): str(s.get("name", ""))
+        for s in existing_styles
+        if isinstance(s.get("id"), str)
+    }
+    incoming_style_id_to_name = {
+        s.get("id"): str(s.get("name", ""))
+        for s in incoming_styles
+        if isinstance(s.get("id"), str)
+    }
 
     style_name_to_idx = {}
     style_used_names = set()
@@ -143,6 +210,7 @@ def _merge_data(existing: dict, incoming: dict, duplicate_policy: str) -> tuple[
                 replaced = _copy_style(incoming_style)
                 replaced["id"] = existing_id
                 replaced["name"] = incoming_name
+                replaced["favorite"] = bool(existing_style.get("favorite")) or bool(incoming_style.get("favorite"))
                 existing_styles[existing_idx] = replaced
                 if isinstance(incoming_id, str) and isinstance(existing_id, str):
                     style_id_map[incoming_id] = existing_id
@@ -186,6 +254,13 @@ def _merge_data(existing: dict, incoming: dict, duplicate_policy: str) -> tuple[
     mix_id_map: dict[str, str] = {}
     added_mixes: list[str] = []
     conflicted_mixes: list[dict[str, str]] = []
+    touched_existing_mix_ids: set[str] = set()
+
+    final_style_name_to_id = {
+        str(s.get("name", "")): s.get("id")
+        for s in existing_styles
+        if isinstance(s.get("id"), str)
+    }
 
     for incoming_mix in incoming_mixes:
         incoming_id = incoming_mix.get("id")
@@ -197,6 +272,14 @@ def _merge_data(existing: dict, incoming: dict, duplicate_policy: str) -> tuple[
         for entry in remapped_mix.get("styles", []):
             style_id = entry.get("style_id")
             mapped_style_id = style_id_map.get(style_id, style_id)
+            if mapped_style_id not in style_used_ids:
+                style_name = None
+                if isinstance(style_id, str):
+                    style_name = incoming_style_id_to_name.get(style_id) or existing_style_id_to_name.get(style_id)
+                if style_name:
+                    fallback_id = final_style_name_to_id.get(style_name)
+                    if isinstance(fallback_id, str):
+                        mapped_style_id = fallback_id
             remapped_entry = dict(entry)
             remapped_entry["style_id"] = mapped_style_id
             remapped_entries.append(remapped_entry)
@@ -214,9 +297,11 @@ def _merge_data(existing: dict, incoming: dict, duplicate_policy: str) -> tuple[
                 replaced = _copy_mix(remapped_mix)
                 replaced["id"] = existing_mix_id
                 replaced["name"] = incoming_name
+                replaced["favorite"] = bool(existing_mix.get("favorite")) or bool(incoming_mix.get("favorite"))
                 existing_mixes[existing_idx] = replaced
                 if isinstance(incoming_id, str) and isinstance(existing_mix_id, str):
                     mix_id_map[incoming_id] = existing_mix_id
+                    touched_existing_mix_ids.add(existing_mix_id)
                 conflicted_mixes.append({"name": incoming_name, "action": "replaced"})
                 continue
 
@@ -245,6 +330,8 @@ def _merge_data(existing: dict, incoming: dict, duplicate_policy: str) -> tuple[
     existing_current_mix_id = existing.get("current_mix_id")
     incoming_current_mix_id = incoming.get("current_mix_id")
     current_mix_id = existing_current_mix_id
+    if isinstance(current_mix_id, str) and current_mix_id in touched_existing_mix_ids:
+        current_mix_id = None
     if not current_mix_id and isinstance(incoming_current_mix_id, str):
         current_mix_id = mix_id_map.get(incoming_current_mix_id, incoming_current_mix_id)
 
@@ -263,6 +350,8 @@ def _merge_data(existing: dict, incoming: dict, duplicate_policy: str) -> tuple[
         "total_added_mixes": len(added_mixes),
         "total_conflicted_styles": len(conflicted_styles),
         "total_conflicted_mixes": len(conflicted_mixes),
+        "ignored_duplicate_styles": ignored_dup_styles,
+        "ignored_duplicate_mixes": ignored_dup_mixes,
     }
 
     return merged_data, summary
@@ -271,22 +360,41 @@ def _merge_data(existing: dict, incoming: dict, duplicate_policy: str) -> tuple[
 def _apply_import(workspace_path: str, incoming_data: dict, import_mode: str, duplicate_policy: str) -> tuple[dict, dict]:
     """Apply import logic, returning (data_to_save, summary)."""
     _ensure_data_shape(incoming_data)
+    incoming_clean = {
+        **incoming_data,
+        "styles": [_copy_style(s) for s in incoming_data.get("styles", []) if isinstance(s, dict)],
+        "mixes": [_copy_mix(m) for m in incoming_data.get("mixes", []) if isinstance(m, dict)],
+    }
+    incoming_clean["styles"], ignored_dup_styles = _dedupe_styles(incoming_clean["styles"])
+    incoming_clean["mixes"], ignored_dup_mixes = _dedupe_mixes(incoming_clean["mixes"])
+
+    for style in incoming_clean["styles"]:
+        img = style.get("image_filename")
+        if img:
+            style["image_filename"] = _sanitize_image_filename(str(img))
+    for mix in incoming_clean["mixes"]:
+        img = mix.get("image_filename")
+        if img:
+            mix["image_filename"] = _sanitize_image_filename(str(img))
+
     if import_mode == "replace":
         # Replace mode: no conflicts, everything is new
         summary = {
-            "added_styles": [s.get("name", "") for s in incoming_data.get("styles", [])[:10]],
-            "added_mixes": [m.get("name", "") for m in incoming_data.get("mixes", [])[:10]],
+            "added_styles": [s.get("name", "") for s in incoming_clean.get("styles", [])[:10]],
+            "added_mixes": [m.get("name", "") for m in incoming_clean.get("mixes", [])[:10]],
             "conflicted_styles": [],
             "conflicted_mixes": [],
-            "total_added_styles": len(incoming_data.get("styles", [])),
-            "total_added_mixes": len(incoming_data.get("mixes", [])),
+            "total_added_styles": len(incoming_clean.get("styles", [])),
+            "total_added_mixes": len(incoming_clean.get("mixes", [])),
             "total_conflicted_styles": 0,
             "total_conflicted_mixes": 0,
+            "ignored_duplicate_styles": ignored_dup_styles,
+            "ignored_duplicate_mixes": ignored_dup_mixes,
         }
-        return incoming_data, summary
+        return incoming_clean, summary
     existing = _load(workspace_path)
     _ensure_data_shape(existing)
-    return _merge_data(existing, incoming_data, duplicate_policy)
+    return _merge_data(existing, incoming_clean, duplicate_policy)
 
 
 def register_routes(app: web.Application, workspace_path: str) -> None:
@@ -383,10 +491,13 @@ def register_routes(app: web.Application, workspace_path: str) -> None:
         """Restore from a ZIP backup: extract data JSON and images."""
         import_mode = request.query.get("import_mode", "replace")
         duplicate_policy = request.query.get("duplicate_policy", "rename")
+        image_failure_action = request.query.get("image_failure_action", "ask")
         if import_mode not in _VALID_IMPORT_MODES:
             return web.json_response({"error": "Invalid import_mode"}, status=400)
         if duplicate_policy not in _VALID_DUPLICATE_POLICIES:
             return web.json_response({"error": "Invalid duplicate_policy"}, status=400)
+        if image_failure_action not in {"ask", "continue", "rollback"}:
+            return web.json_response({"error": "Invalid image_failure_action"}, status=400)
 
         try:
             import folder_paths
@@ -419,20 +530,66 @@ def register_routes(app: web.Application, workspace_path: str) -> None:
             except ValueError as exc:
                 return web.json_response({"error": str(exc)}, status=400)
 
-            _save(workspace_path, data_to_save)
-
             # Restore images
+            written_images: list[str] = []
+            failed_images: list[str] = []
+            skipped_invalid_images = 0
             for name in names:
                 if name.startswith("images/styles/") or name.startswith("images/mixes/"):
                     parts = name.split("/")  # ["images", "styles"|"mixes", "filename"]
                     if len(parts) != 3 or not parts[2]:
                         continue
                     _, subdir, fname = parts
+                    safe_fname = _sanitize_image_filename(fname)
+                    if not safe_fname:
+                        skipped_invalid_images += 1
+                        continue
                     dest_dir = os.path.join(input_dir, "immac_style_mixer", subdir)
                     os.makedirs(dest_dir, exist_ok=True)
-                    dest = os.path.join(dest_dir, fname)
-                    with open(dest, "wb") as f:
-                        f.write(zf.read(name))
+                    dest = os.path.realpath(os.path.join(dest_dir, safe_fname))
+                    dest_dir_real = os.path.realpath(dest_dir)
+                    if not (dest == dest_dir_real or dest.startswith(dest_dir_real + os.sep)):
+                        skipped_invalid_images += 1
+                        continue
+                    try:
+                        payload = zf.read(name)
+                        with open(dest, "wb") as f:
+                            f.write(payload)
+                        written_images.append(dest)
+                    except Exception:
+                        failed_images.append(name)
+
+            if failed_images:
+                if image_failure_action == "ask":
+                    for path in written_images:
+                        try:
+                            os.remove(path)
+                        except Exception:
+                            pass
+                    return web.json_response({
+                        "status": "image_restore_requires_confirmation",
+                        "error": "Some images could not be restored",
+                        "failed_images": failed_images[:20],
+                        "total_failed_images": len(failed_images),
+                        "skipped_invalid_images": skipped_invalid_images,
+                        "can_continue": True,
+                        "can_rollback": True,
+                    }, status=409)
+                if image_failure_action == "rollback":
+                    for path in written_images:
+                        try:
+                            os.remove(path)
+                        except Exception:
+                            pass
+                    return web.json_response({
+                        "status": "rolled_back",
+                        "error": "Restore rolled back due to image restore failures",
+                        "failed_images": failed_images[:20],
+                        "total_failed_images": len(failed_images),
+                        "skipped_invalid_images": skipped_invalid_images,
+                    }, status=400)
+
+            _save(workspace_path, data_to_save)
 
         styles_n = len(data_to_save.get("styles", []))
         mixes_n = len(data_to_save.get("mixes", []))
@@ -446,6 +603,8 @@ def register_routes(app: web.Application, workspace_path: str) -> None:
             "styles": styles_n,
             "mixes": mixes_n,
             "images": img_n,
+            "failed_images": len(failed_images),
+            "skipped_invalid_images": skipped_invalid_images,
             "summary": summary,
         })
 

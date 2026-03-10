@@ -3,6 +3,7 @@ import JSZip from 'jszip'
 import { Style } from '../types'
 import { styleImageUrl, uploadStyleImage } from '../hooks/useStyleMixerData'
 import ImageLightbox from './ImageLightbox'
+import AlertModal from './AlertModal'
 
 interface Props {
   style: Style
@@ -16,6 +17,8 @@ interface Props {
 }
 
 export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onAddToMix, onRemoveFromMix, isDirty, onRefreshCache }: Props) {
+  const imageSrc = style.image_filename ? styleImageUrl(style.image_filename, style.image_updated_at) : ''
+
   const [editingName, setEditingName] = useState(false)
   const [editingValue, setEditingValue] = useState(false)
   const [editingNegative, setEditingNegative] = useState(false)
@@ -28,6 +31,7 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
   const [imageHovered, setImageHovered] = useState(false)
   const [copied, setCopied] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const hasMix = !!(onAddToMix || onRemoveFromMix)
@@ -43,8 +47,8 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
       }
       zip.file('style_mixer_data.json', JSON.stringify(data, null, 2))
 
-      if (style.image_filename) {
-        const imageResp = await fetch(styleImageUrl(style.image_filename, style.image_updated_at))
+      if (imageSrc) {
+        const imageResp = await fetch(imageSrc)
         if (imageResp.ok) {
           const imageBlob = await imageResp.blob()
           zip.file(`images/styles/${style.image_filename}`, imageBlob)
@@ -60,7 +64,7 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
       a.click()
       URL.revokeObjectURL(url)
     } catch (e) {
-      alert(`Failed to export style ZIP: ${(e as Error).message}`)
+      setExportError(`Failed to export style ZIP: ${(e as Error).message}`)
     } finally {
       setExporting(false)
     }
@@ -282,9 +286,9 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
         >
           {uploading ? (
             'Uploading…'
-          ) : style.image_filename ? (
+          ) : imageSrc ? (
             <img
-              src={styleImageUrl(style.image_filename, style.image_updated_at)}
+              src={imageSrc}
               alt={style.name}
               style={{
                 width: '100%', height: '100%', objectFit: 'contain',
@@ -296,7 +300,7 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
             '+ image'
           )}
         </div>
-        {!uploading && style.image_filename && imageHovered && (
+        {!uploading && !!imageSrc && imageHovered && (
           <button
             title="View full size"
             onClick={(e) => { e.stopPropagation(); setLightboxOpen(true) }}
@@ -307,9 +311,9 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
         )}
       </div>
 
-      {lightboxOpen && style.image_filename && (
+      {lightboxOpen && !!imageSrc && (
         <ImageLightbox
-          src={styleImageUrl(style.image_filename, style.image_updated_at)}
+          src={imageSrc}
           alt={style.name}
           onClose={() => setLightboxOpen(false)}
         />
@@ -391,6 +395,14 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
           </div>
         )}
       </div>
+
+      {exportError && (
+        <AlertModal
+          title="Export Failed"
+          message={exportError}
+          onClose={() => setExportError(null)}
+        />
+      )}
     </div>
   )
 }

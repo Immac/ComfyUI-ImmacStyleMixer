@@ -1,6 +1,6 @@
 [project]
 name = "ComfyUI-ImmacStyleMixer"
-version = "0.1.0"
+version = "0.2.0"
 description = "ComfyUI custom node package with a Style Mixer sidebar panel and nodes for managing reusable prompt styles and named mixes."
 authors = [
   {name = "Immac", email = "immac.gm@gmail.com"}
