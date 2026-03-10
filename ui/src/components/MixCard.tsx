@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
+import JSZip from 'jszip'
 import { Mix, MixEntry, Style } from '../types'
-import { mixImageUrl, uploadMixImage } from '../hooks/useStyleMixerData'
+import { mixImageUrl, styleImageUrl, uploadMixImage } from '../hooks/useStyleMixerData'
 import ImageLightbox from './ImageLightbox'
 import BarInput from './BarInput'
 
@@ -31,6 +32,7 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
   const [pendingDelete, setPendingDelete] = useState(false)
   const [imageHovered, setImageHovered] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [styleDragOver, setStyleDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -118,6 +120,51 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
         }
         ;(window as any).app?.graph?.setDirtyCanvas(true, true)
       },
+    }
+  }
+
+  async function exportMixZip() {
+    setExporting(true)
+    try {
+      const zip = new JSZip()
+      const referencedStyleIds = new Set(mix.styles.map((entry) => entry.style_id))
+      const referencedStyles = styles.filter((style) => referencedStyleIds.has(style.id))
+      const data = {
+        styles: referencedStyles,
+        mixes: [mix],
+        current_mix_id: null,
+      }
+
+      zip.file('style_mixer_data.json', JSON.stringify(data, null, 2))
+
+      if (mix.image_filename) {
+        const imageResp = await fetch(mixImageUrl(mix.image_filename, mix.image_updated_at))
+        if (imageResp.ok) {
+          const imageBlob = await imageResp.blob()
+          zip.file(`images/mixes/${mix.image_filename}`, imageBlob)
+        }
+      }
+
+      for (const referencedStyle of referencedStyles) {
+        if (!referencedStyle.image_filename) continue
+        const styleResp = await fetch(styleImageUrl(referencedStyle.image_filename, referencedStyle.image_updated_at))
+        if (!styleResp.ok) continue
+        const styleBlob = await styleResp.blob()
+        zip.file(`images/styles/${referencedStyle.image_filename}`, styleBlob)
+      }
+
+      const blob = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const safeName = (mix.name || 'mix').replace(/[^a-zA-Z0-9_-]/g, '_')
+      a.download = `${safeName}_${new Date().toISOString().slice(0, 10)}.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      alert(`Failed to export mix ZIP: ${(e as Error).message}`)
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -223,6 +270,14 @@ export default function MixCard({ mix, styles, isActive, isDirty, onActivate, on
             </button>
           )
         })()}
+        <button
+          title="Export mix ZIP (includes referenced styles and images)"
+          onClick={(e) => { e.stopPropagation(); exportMixZip().catch(console.error) }}
+          disabled={exporting}
+          style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)', opacity: exporting ? 0.5 : 1 }}
+        >
+          <i className={exporting ? 'pi pi-spin pi-spinner' : 'pi pi-download'} />
+        </button>
         <button title="Delete mix" onClick={() => setPendingDelete(true)} style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)' }}>
           <i className="pi pi-trash" />
         </button>

@@ -20,6 +20,10 @@ Open the **Immac Style Mixer** tab in the ComfyUI sidebar to:
   - Draggable bar inputs for weights (ComfyUI-native feel).
   - Copy the fully assembled prompt for the selected mix.
   - The **Current Mix** section shows the active mix's styles and their thumbnails at a glance.
+- **Backup & restore** — export to JSON or ZIP, then restore with import controls:
+  - `Replace` overwrites the entire library (previous behavior).
+  - `Merge` appends imported items into existing data.
+  - On name collisions during merge, choose to `Rename duplicates` (`Name (1)`, `Name (2)`, ...), `Replace duplicates`, or `Skip duplicates`.
 - **Node preview** — Style Mix nodes show a live thumbnail of the selected mix directly on the canvas node.
 
 All data is stored in `style_mixer_data.json` beside the custom node and persisted via a lightweight REST API.

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import JSZip from 'jszip'
 import { Style } from '../types'
 import { styleImageUrl, uploadStyleImage } from '../hooks/useStyleMixerData'
 import ImageLightbox from './ImageLightbox'
@@ -26,9 +27,44 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
   const [pendingDelete, setPendingDelete] = useState(false)
   const [imageHovered, setImageHovered] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const hasMix = !!(onAddToMix || onRemoveFromMix)
+
+  async function exportStyleZip() {
+    setExporting(true)
+    try {
+      const zip = new JSZip()
+      const data = {
+        styles: [style],
+        mixes: [],
+        current_mix_id: null,
+      }
+      zip.file('style_mixer_data.json', JSON.stringify(data, null, 2))
+
+      if (style.image_filename) {
+        const imageResp = await fetch(styleImageUrl(style.image_filename, style.image_updated_at))
+        if (imageResp.ok) {
+          const imageBlob = await imageResp.blob()
+          zip.file(`images/styles/${style.image_filename}`, imageBlob)
+        }
+      }
+
+      const blob = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const safeName = (style.name || 'style').replace(/[^a-zA-Z0-9_-]/g, '_')
+      a.download = `${safeName}_${new Date().toISOString().slice(0, 10)}.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      alert(`Failed to export style ZIP: ${(e as Error).message}`)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   function copyPrompt() {
     if (!style.value) return
@@ -169,6 +205,14 @@ export default function StyleCard({ style, onUpdate, onDelete, inCurrentMix, onA
               <i className="pi pi-exclamation-circle" />
             </button>
           )}
+          <button
+            title="Export style ZIP (includes image)"
+            onClick={() => exportStyleZip().catch(console.error)}
+            disabled={exporting}
+            style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)', opacity: exporting ? 0.5 : 1 }}
+          >
+            <i className={exporting ? 'pi pi-spin pi-spinner' : 'pi pi-download'} />
+          </button>
           <button title="Delete style" onClick={() => setPendingDelete(true)} style={{ ...iconBtn, color: 'var(--p-text-muted-color, #888)' }}>
             <i className="pi pi-trash" />
           </button>
