@@ -161,3 +161,128 @@ export function mixImageUrl(filename: string, updatedAt?: number): string {
   const bust = updatedAt ? `&t=${updatedAt}` : ''
   return `/view?filename=${encodeURIComponent(filename)}&subfolder=immac_style_mixer%2Fmixes&type=input${bust}`
 }
+
+export interface ConflictItem {
+  id: string
+  name: string
+  existingName: string
+  type: 'style' | 'mix'
+}
+
+/** Detect conflicts between incoming and existing data.
+ * Returns conflicts where either ID or name matches an existing item. */
+export function detectConflicts(
+  incoming: StyleMixerData,
+  existing: StyleMixerData
+): ConflictItem[] {
+  const conflicts: ConflictItem[] = []
+  
+  // Check style conflicts
+  for (const incomingStyle of incoming.styles) {
+    const existingById = existing.styles.find(s => s.id === incomingStyle.id)
+    const existingByName = existing.styles.find(s => s.name === incomingStyle.name)
+    
+    if (existingById || existingByName) {
+      const existing = existingById || existingByName!
+      conflicts.push({
+        id: incomingStyle.id,
+        name: incomingStyle.name,
+        existingName: existing.name,
+        type: 'style'
+      })
+    }
+  }
+  
+  // Check mix conflicts
+  for (const incomingMix of incoming.mixes) {
+    const existingById = existing.mixes.find(m => m.id === incomingMix.id)
+    const existingByName = existing.mixes.find(m => m.name === incomingMix.name)
+    
+    if (existingById || existingByName) {
+      const existing = existingById || existingByName!
+      conflicts.push({
+        id: incomingMix.id,
+        name: incomingMix.name,
+        existingName: existing.name,
+        type: 'mix'
+      })
+    }
+  }
+  
+  return conflicts
+}
+
+/** Merge incoming data with existing data, applying conflict resolutions.
+ * For 'rename': auto-number duplicates (e.g., "Style Name (2)")
+ * For 'replace': overwrite existing item with same ID or name */
+export function mergeWithResolutions(
+  incoming: StyleMixerData,
+  existing: StyleMixerData,
+  resolutions: Record<string, 'rename' | 'replace'>
+): StyleMixerData {
+  const result: StyleMixerData = {
+    styles: [...existing.styles],
+    mixes: [...existing.mixes],
+    current_mix_id: existing.current_mix_id
+  }
+  
+  // Helper to generate unique name with numbering
+  function getUniqueName(baseName: string, existingNames: Set<string>): string {
+    if (!existingNames.has(baseName)) return baseName
+    
+    let counter = 2
+    let newName = `${baseName} (${counter})`
+    while (existingNames.has(newName)) {
+      counter++
+      newName = `${baseName} (${counter})`
+    }
+    return newName
+  }
+  
+  const existingStyleNames = new Set(result.styles.map(s => s.name))
+  const existingMixNames = new Set(result.mixes.map(m => m.name))
+  
+  // Import styles
+  for (const incomingStyle of incoming.styles) {
+    const resolution = resolutions[incomingStyle.id]
+    const existingIdx = result.styles.findIndex(s => s.id === incomingStyle.id || s.name === incomingStyle.name)
+    
+    if (resolution === 'replace' && existingIdx >= 0) {
+      // Replace existing
+      result.styles[existingIdx] = incomingStyle
+    } else if (resolution === 'rename' || existingIdx >= 0) {
+      // Rename with unique name
+      const newName = getUniqueName(incomingStyle.name, existingStyleNames)
+      const renamedStyle = { ...incomingStyle, name: newName, id: crypto.randomUUID() }
+      result.styles.push(renamedStyle)
+      existingStyleNames.add(newName)
+    } else {
+      // No conflict - just add
+      result.styles.push(incomingStyle)
+      existingStyleNames.add(incomingStyle.name)
+    }
+  }
+  
+  // Import mixes
+  for (const incomingMix of incoming.mixes) {
+    const resolution = resolutions[incomingMix.id]
+    const existingIdx = result.mixes.findIndex(m => m.id === incomingMix.id || m.name === incomingMix.name)
+    
+    if (resolution === 'replace' && existingIdx >= 0) {
+      // Replace existing
+      result.mixes[existingIdx] = incomingMix
+    } else if (resolution === 'rename' || existingIdx >= 0) {
+      // Rename with unique name
+      const newName = getUniqueName(incomingMix.name, existingMixNames)
+      const renamedMix = { ...incomingMix, name: newName, id: crypto.randomUUID() }
+      result.mixes.push(renamedMix)
+      existingMixNames.add(newName)
+    } else {
+      // No conflict - just add
+      result.mixes.push(incomingMix)
+      existingMixNames.add(incomingMix.name)
+    }
+  }
+  
+  return result
+}

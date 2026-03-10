@@ -1,10 +1,12 @@
-import { useCallback, useState } from 'react'
-import { useStyleMixerData, styleImageUrl } from '../hooks/useStyleMixerData'
+import { useCallback, useRef, useState } from 'react'
+import JSZip from 'jszip'
+import { useStyleMixerData, styleImageUrl, detectConflicts, mergeWithResolutions, ConflictItem } from '../hooks/useStyleMixerData'
 import { Mix, MixEntry, Style, StyleMixerData } from '../types'
 import MixCard from './MixCard'
 import StyleGallery from './StyleGallery'
 import ImageLightbox from './ImageLightbox'
 import BarInput from './BarInput'
+import ConflictResolutionDialog from './ConflictResolutionDialog'
 
 function uid(): string {
   return crypto.randomUUID()
@@ -69,6 +71,13 @@ export default function StyleMixerPanel() {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const [hoveredChipId, setHoveredChipId] = useState<string | null>(null)
   const [dragOverCurrentMix, setDragOverCurrentMix] = useState(false)
+
+  // Import/Export state
+  const [conflicts, setConflicts] = useState<ConflictItem[]>([])
+  const [pendingImport, setPendingImport] = useState<StyleMixerData | null>(null)
+  const [importing, setImporting] = useState(false)
+  const styleFileInputRef = useRef<HTMLInputElement>(null)
+  const mixFileInputRef = useRef<HTMLInputElement>(null)
 
   // ── Style operations ────────────────────────────────────────────────────────
 
@@ -149,6 +158,158 @@ export default function StyleMixerPanel() {
       styles: currentMix.styles.map((e) => e.style_id === styleId ? { ...e, ...patch } : e),
     }, options)
   }, [currentMix, updateMix])
+
+  // ── Import/Export operations ─────────────────────────────────────────────────
+
+  const handleImportStyle = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = '' // Reset input
+    
+    try {
+      setImporting(true)
+      const zip = await JSZip.loadAsync(file)
+      const jsonFile = zip.file('style_mixer_data.json')
+      if (!jsonFile) throw new Error('Invalid style ZIP: missing style_mixer_data.json')
+      
+      const jsonText = await jsonFile.async('text')
+      const imported = JSON.parse(jsonText) as StyleMixerData
+      
+      if (!imported.styles || imported.styles.length === 0) {
+        throw new Error('No styles found in import file')
+      }
+      
+      // Detect conflicts
+      const conflictList = detectConflicts(imported, data)
+      
+      if (conflictList.length > 0) {
+        // Show conflict dialog
+        setConflicts(conflictList)
+        setPendingImport(imported)
+      } else {
+        // No conflicts - merge directly
+        const merged = mergeWithResolutions(imported, data, {})
+        update(merged)
+        ;(window as any).app?.toast?.add({
+          severity: 'success',
+          summary: 'Style Imported',
+          detail: `${imported.styles.length} style(s) imported successfully.`,
+          life: 3000,
+        })
+      }
+    } catch (err) {
+      console.error('[ImmacStyleMixer] Import failed', err)
+      ;(window as any).app?.toast?.add({
+        severity: 'error',
+        summary: 'Import Failed',
+        detail: String(err),
+        life: 5000,
+      })
+    } finally {
+      setImporting(false)
+    }
+  }, [data, update])
+
+  const handleImportMix = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = '' // Reset input
+    
+    try {
+      setImporting(true)
+      const zip = await JSZip.loadAsync(file)
+      const jsonFile = zip.file('style_mixer_data.json')
+      if (!jsonFile) throw new Error('Invalid mix ZIP: missing style_mixer_data.json')
+      
+      const jsonText = await jsonFile.async('text')
+      const imported = JSON.parse(jsonText) as StyleMixerData
+      
+      if (!imported.mixes || imported.mixes.length === 0) {
+        throw new Error('No mixes found in import file')
+      }
+      
+      // Detect conflicts
+      const conflictList = detectConflicts(imported, data)
+      
+      if (conflictList.length > 0) {
+        // Show conflict dialog
+        setConflicts(conflictList)
+        setPendingImport(imported)
+      } else {
+        // No conflicts - merge directly
+        const merged = mergeWithResolutions(imported, data, {})
+        update(merged)
+        ;(window as any).app?.toast?.add({
+          severity: 'success',
+          summary: 'Mix Imported',
+          detail: `${imported.mixes.length} mix(es) imported successfully.`,
+          life: 3000,
+        })
+      }
+    } catch (err) {
+      console.error('[ImmacStyleMixer] Import failed', err)
+      ;(window as any).app?.toast?.add({
+        severity: 'error',
+        summary: 'Import Failed',
+        detail: String(err),
+        life: 5000,
+      })
+    } finally {
+      setImporting(false)
+    }
+  }, [data, update])
+
+  const handleConflictResolution = useCallback((resolutions: Record<string, 'rename' | 'replace'>) => {
+    if (!pendingImport) return
+    
+    const merged = mergeWithResolutions(pendingImport, data, resolutions)
+    update(merged)
+    
+    const totalItems = (pendingImport.styles?.length || 0) + (pendingImport.mixes?.length || 0)
+    ;(window as any).app?.toast?.add({
+      severity: 'success',
+      summary: 'Import Complete',
+      detail: `${totalItems} item(s) imported successfully.`,
+      life: 3000,
+    })
+    
+    // Clear state
+    setConflicts([])
+    setPendingImport(null)
+  }, [pendingImport, data, update])
+
+  const handleExportAll = useCallback(async () => {
+    try {
+      const response = await fetch('/immac_style_mixer/api/backup.zip')
+      if (!response.ok) throw new Error(`Export failed: HTTP ${response.status}`)
+      
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const date = new Date().toISOString().split('T')[0]
+      a.download = `style_mixer_backup_${date}.zip`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      
+      ;(window as any).app?.toast?.add({
+        severity: 'success',
+        summary: 'Export Complete',
+        detail: 'Full backup downloaded successfully.',
+        life: 3000,
+      })
+    } catch (err) {
+      console.error('[ImmacStyleMixer] Export failed', err)
+      ;(window as any).app?.toast?.add({
+        severity: 'error',
+        summary: 'Export Failed',
+        detail: String(err),
+        life: 5000,
+      })
+    }
+  }, [])
 
   if (loading) return <div style={panelStyle}>Loading…</div>
   if (error) return <div style={{ ...panelStyle, color: '#e55' }}>Error: {error}</div>
@@ -373,8 +534,94 @@ export default function StyleMixerPanel() {
           onRefreshCache={refreshNodes}
         />
       </CollapsibleSection>
+
+      {/* ── Import/Export Toolbar ────────────────────────────────────────── */}
+      <div style={{
+        borderTop: '1px solid var(--p-surface-border, #333)',
+        padding: '8px 0',
+        display: 'flex',
+        gap: 8,
+        flexShrink: 0,
+      }}>
+        <button
+          onClick={() => styleFileInputRef.current?.click()}
+          disabled={importing}
+          style={{
+            padding: '6px 12px',
+            fontSize: 12,
+            backgroundColor: '#2a2a2a',
+            border: '1px solid #444',
+            borderRadius: 4,
+            color: '#ccc',
+            cursor: importing ? 'not-allowed' : 'pointer',
+            opacity: importing ? 0.5 : 1,
+          }}
+          title="Import a style from a ZIP file"
+        >
+          📥 Import Style
+        </button>
+
+        <button
+          onClick={() => mixFileInputRef.current?.click()}
+          disabled={importing}
+          style={{
+            padding: '6px 12px',
+            fontSize: 12,
+            backgroundColor: '#2a2a2a',
+            border: '1px solid #444',
+            borderRadius: 4,
+            color: '#ccc',
+            cursor: importing ? 'not-allowed' : 'pointer',
+            opacity: importing ? 0.5 : 1,
+          }}
+          title="Import a mix from a ZIP file"
+        >
+          📥 Import Mix
+        </button>
+
+        <button
+          onClick={handleExportAll}
+          style={{
+            padding: '6px 12px',
+            fontSize: 12,
+            backgroundColor: '#2a2a2a',
+            border: '1px solid #444',
+            borderRadius: 4,
+            color: '#ccc',
+            cursor: 'pointer',
+            marginLeft: 'auto',
+          }}
+          title="Export all styles and mixes as a backup ZIP"
+        >
+          📤 Export All
+        </button>
+
+        {/* Hidden file inputs */}
+        <input
+          ref={styleFileInputRef}
+          type="file"
+          accept=".zip"
+          onChange={handleImportStyle}
+          style={{ display: 'none' }}
+        />
+        <input
+          ref={mixFileInputRef}
+          type="file"
+          accept=".zip"
+          onChange={handleImportMix}
+          style={{ display: 'none' }}
+        />
+      </div>
+
       {lightboxSrc && (
         <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      )}
+      {conflicts.length > 0 && pendingImport && (
+        <ConflictResolutionDialog
+          conflicts={conflicts}
+          onConfirm={handleConflictResolution}
+          onCancel={() => { setConflicts([]); setPendingImport(null) }}
+        />
       )}
     </div>
   )
