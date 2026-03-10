@@ -555,10 +555,14 @@ export default function StyleMixerPanel() {
             color: '#ccc',
             cursor: importing ? 'not-allowed' : 'pointer',
             opacity: importing ? 0.5 : 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
           }}
           title="Import a style from a ZIP file"
         >
-          📥 Import Style
+          <i className="pi pi-download" style={{ fontSize: 12 }} />
+          Import Style
         </button>
 
         <button
@@ -573,10 +577,14 @@ export default function StyleMixerPanel() {
             color: '#ccc',
             cursor: importing ? 'not-allowed' : 'pointer',
             opacity: importing ? 0.5 : 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
           }}
           title="Import a mix from a ZIP file"
         >
-          📥 Import Mix
+          <i className="pi pi-download" style={{ fontSize: 12 }} />
+          Import Mix
         </button>
 
         <button
@@ -590,10 +598,14 @@ export default function StyleMixerPanel() {
             color: '#ccc',
             cursor: 'pointer',
             marginLeft: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
           }}
           title="Export all styles and mixes as a backup ZIP"
         >
-          📤 Export All
+          <i className="pi pi-upload" style={{ fontSize: 12 }} />
+          Export All
         </button>
 
         {/* Hidden file inputs */}
